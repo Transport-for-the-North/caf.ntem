@@ -1,38 +1,37 @@
 
+import abc
 import dataclasses
+import enum
 import pathlib
 
 
 import caf.toolkit as ctk
-
-@dataclasses.dataclass
-class Scenarios:
-    core: str= "Core"
-    high: str= "High"
-    low: str= "Low"
-    regional: str= "Regional"
-    behavioural: str= "Behavioural"
-    technology: str= "Technology"
-
-class NtemConstants(ctk.BaseConfig):
-    # The directory where the data is stored
-    scenarios: Scenarios = Scenarios()
+import pydantic
 
 
-def get_constants(path: pathlib.Path|None) -> NtemConstants:
-    """Get constants for the caf.ntem module.
+class InputBase(ctk.BaseConfig, abc.ABC):
+    """Base class for input parameters."""
+    output_path: pathlib.Path = pydantic.Field(description="Path to the output directory.")
 
-    Parameters
-    ----------
-    path : pathlib.Path | None
-        if None then return the default constants, otherwise load the constants from the path.
-
-    Returns
-    -------
-    NtemConstants
-        Constants for the caf.ntem module.
-    """    
-    if path is None:
-        return NtemConstants()
     
-    return NtemConstants.load_yaml(path)
+    @abc.abstractmethod
+    def run(self):
+        """Run the relavent function."""
+    
+
+class Scenarios(enum.Enum):
+    CORE: str= "Core"
+    HIGH: str= "High"
+    LOW: str= "Low"
+    REGIONAL: str= "Regional"
+    BEHAVIOURAL: str= "Behavioural"
+    TECHNOLOGY: str= "Technology"
+
+
+
+
+class AccessTables(enum.Enum):
+    PLANNING: str = "Planning"
+    CAR_OWNERSHIP: str = "CarOwnership"
+    TE_CAR_AVAILABILITY: str = "TripEndDataByCarAvailability"
+    TE_DIRECTION: str = "TripEndDataByDirection"

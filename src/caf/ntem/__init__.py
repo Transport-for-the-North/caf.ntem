@@ -3,6 +3,6 @@
 from ._version import __version__
 
 
-from caf.ntem.build import build
+from caf.ntem import ntem_constants, build, db_structure 
 
 from caf.ntem.ntem_constants import get_constants
