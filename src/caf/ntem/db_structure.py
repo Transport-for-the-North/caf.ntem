@@ -111,13 +111,14 @@ class GeoLookup(Base):
 
 class TripEndDataByCarAvailability(Base):
     __tablename__ = "trip_end_data_by_car_availability"
+    id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
     metadata_id: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(MetaData.id))
-    zone_id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
+    zone_id: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(GeoLookup.zone_id))
     zone_type_id: orm.Mapped[int]
     purpose: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(PurposeTypes.id))
     mode: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(ModeTypes.id))
-    car_ownership_type: orm.Mapped[int] = orm.mapped_column(
-        sqlalchemy.ForeignKey(CarOwnershipTypes.id)
+    car_availability_type: orm.Mapped[int] = orm.mapped_column(
+        sqlalchemy.ForeignKey(CarAvailabilityTypes.id)
     )
     year: orm.Mapped[int]
     value: orm.Mapped[float]
@@ -125,8 +126,9 @@ class TripEndDataByCarAvailability(Base):
 
 class TripEndDataByDirection(Base):
     __tablename__ = "trip_end_data_by_direction"
+    id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
     metadata_id: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(MetaData.id))
-    zone_id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
+    zone_id: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(GeoLookup.zone_id))
     zone_type_id: orm.Mapped[int]
     purpose: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(PurposeTypes.id))
     mode: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(ModeTypes.id))
@@ -139,9 +141,10 @@ class TripEndDataByDirection(Base):
 
 
 class CarOwnership(Base):
-    __tablename__ = "car_owner  ship"
+    __tablename__ = "car_ownership"
+    id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
     metadata_id: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(MetaData.id))
-    zone_id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
+    zone_id: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(GeoLookup.zone_id))
     zone_type_id: orm.Mapped[int]
     car_ownership_type: orm.Mapped[int] = orm.mapped_column(
         sqlalchemy.ForeignKey(CarOwnershipTypes.id)
@@ -152,8 +155,9 @@ class CarOwnership(Base):
 
 class Planning(Base):
     __tablename__ = "planning"
+    id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
     metadata_id: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(MetaData.id))
-    zone_id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
+    zone_id: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(GeoLookup.zone_id))
     zone_type_id: orm.Mapped[int]
     planning_data_type: orm.Mapped[int] = orm.mapped_column(
         sqlalchemy.ForeignKey(PlanningDataTypes.id)

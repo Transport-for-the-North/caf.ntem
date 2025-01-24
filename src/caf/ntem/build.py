@@ -27,7 +27,6 @@ ACCESS_CONNCECTION_STRING = (
 )
 
 
-
 class FileType(NamedTuple):
     """A named tuple for storing the scenario and version of a file."""
 
@@ -47,7 +46,9 @@ class BuildArgs(ntem.ntem_constants.InputBase):
         build_db(self.directory, self.output_path)
 
 
-def access_to_df(path: pathlib.Path, table_name: str, substitute: dict[str, str]|None = None) -> pd.DataFrame:
+def access_to_df(
+    path: pathlib.Path, table_name: str, substitute: dict[str, str] | None = None
+) -> pd.DataFrame:
     """Accesses a table in the database and returns it as a pandas DataFrame.
 
     Parameters
@@ -71,9 +72,11 @@ def access_to_df(path: pathlib.Path, table_name: str, substitute: dict[str, str]
     df = pd.read_sql(query, engine)
     if substitute is not None:
         try:
-            df =  df.rename(columns=substitute).loc[:, substitute.values()]
+            df = df.rename(columns=substitute).loc[:, substitute.values()]
         except KeyError as e:
-            raise KeyError(f"Could not find columns {substitute.values()} in {table_name}.") from e
+            raise KeyError(
+                f"Could not find columns {substitute.values()} in {table_name}."
+            ) from e
     return df
 
 
@@ -85,20 +88,123 @@ def process_scenario(
 ):
     """Processes a scenario."""
 
-    for path in tqdm.tqdm(paths, desc=F"Processing: {label.scenario.value} - Version:{label.version}"):
+    for path in tqdm.tqdm(
+        paths, desc=f"Processing: {label.scenario.value} - Version:{label.version}"
+    ):
 
-        planning: pd.DataFrame = process_planning_data(session, path,  metadata_id)
+        process_planning_data(session, path, metadata_id)
+        process_car_ownership_data(session, path, metadata_id)
+        process_te_car_availability_data(session, path, metadata_id)
+        process_te_direction_data(session, path, metadata_id)
 
 
-
-
-def process_planning_data(session: orm.Session, path: pathlib.Path, metadata_id:int) -> pd.DataFrame:
+def process_planning_data(
+    session: orm.Session, path: pathlib.Path, metadata_id: int
+) -> None:
     """Processes the planning data."""
-    planning = access_to_df(path, ntem.ntem_constants.AccessTables.PLANNING.value)
-    planning["metadata_id"] = metadata_id
-    planning = planning.rename(columns={"ZoneID": "zone_id", "Purpose": "purpose_id", "Mode": "mode_id", "CarAvailibility": "car_availability_id"})
 
-    
+    planning = access_to_df(path, ntem.ntem_constants.AccessTables.PLANNING.value)
+
+    # Adjust so the column names match the database structure
+    planning["metadata_id"] = metadata_id
+    planning["zone_type_id"] = 1
+    planning = planning.rename(
+        columns={"ZoneID": "zone_id", "PlanningDataType": "planning_data_type"}
+    ).melt(
+        ["metadata_id", "zone_id", "zone_type_id", "planning_data_type"],
+        var_name="year",
+        value_name="value",
+    )
+
+    session.execute(
+        sqlalchemy.insert(ntem.db_structure.Planning), planning.to_dict(orient="records")
+    )
+
+
+def process_car_ownership_data(
+    session: orm.Session, path: pathlib.Path, metadata_id: int
+) -> None:
+    """Processes the planning data."""
+
+    car_ownership = access_to_df(path, ntem.ntem_constants.AccessTables.CAR_OWNERSHIP.value)
+
+    # Adjust so the column names match the database structure
+    car_ownership["metadata_id"] = metadata_id
+    car_ownership["zone_type_id"] = 1
+    car_ownership = car_ownership.rename(
+        columns={"ZoneID": "zone_id", "CarOwnershipType": "car_ownership_type"}
+    ).melt(
+        ["metadata_id", "zone_id", "zone_type_id", "car_ownership_type"],
+        var_name="year",
+        value_name="value",
+    )
+
+    session.execute(
+        sqlalchemy.insert(ntem.db_structure.CarOwnership),
+        car_ownership.to_dict(orient="records"),
+    )
+
+
+def process_te_car_availability_data(
+    session: orm.Session, path: pathlib.Path, metadata_id: int
+) -> None:
+    """Processes the planning data."""
+
+    te_car_availability = access_to_df(
+        path, ntem.ntem_constants.AccessTables.TE_CAR_AVAILABILITY.value
+    )
+
+    # Adjust so the column names match the database structure
+    te_car_availability["metadata_id"] = metadata_id
+    te_car_availability["zone_type_id"] = 1
+    te_car_availability = te_car_availability.rename(
+        columns={
+            "ZoneID": "zone_id",
+            "Purpose": "purpose",
+            "Mode": "mode",
+            "CarAvailability": "car_availability_type",
+        }
+    ).melt(
+        ["metadata_id", "zone_id", "zone_type_id", "purpose", "mode", "car_availability_type"],
+        var_name="year",
+        value_name="value",
+    )
+
+    session.execute(
+        sqlalchemy.insert(ntem.db_structure.TripEndDataByCarAvailability),
+        te_car_availability.to_dict(orient="records"),
+    )
+
+def process_te_direction_data(
+    session: orm.Session, path: pathlib.Path, metadata_id: int
+) -> None:
+    """Processes the planning data."""
+
+    te_direction = access_to_df(
+        path, ntem.ntem_constants.AccessTables.TE_DIRECTION.value
+    )
+
+    # Adjust so the column names match the database structure
+    te_direction["metadata_id"] = metadata_id
+    te_direction["zone_type_id"] = 1
+    te_direction = te_direction.rename(
+        columns={
+            "ZoneID": "zone_id",
+            "Purpose": "purpose",
+            "Mode": "mode",
+            "TimePeriod": "time_period",
+            "TripType": "trip_type",
+        }
+    ).melt(
+        ["metadata_id", "zone_id", "zone_type_id", "purpose", "mode", "time_period", "trip_type"],
+        var_name="year",
+        value_name="value",
+    )
+
+    session.execute(
+        sqlalchemy.insert(ntem.db_structure.TripEndDataByDirection),
+        te_direction.to_dict(orient="records"),
+    )
 
 
 def process_data(dir: pathlib.Path, output_path: pathlib.Path):
@@ -110,11 +216,11 @@ def process_data(dir: pathlib.Path, output_path: pathlib.Path):
 
     if _CLEAN_DATABASE:
         ntem.db_structure.Base.metadata.drop_all(output_engine)
-    
+
     ntem.db_structure.Base.metadata.create_all(output_engine, checkfirst=False)
 
     LOG.info("Created database tables")
-    
+
     with orm.Session(output_engine) as session:
         LOG.info("Creating Lookup Tables")
         create_lookup_tables(session, lookup_path)
@@ -125,9 +231,12 @@ def process_data(dir: pathlib.Path, output_path: pathlib.Path):
                 scenario=label.scenario.value, version=label.version, share_type_id=1
             )
             session.add(metadata)
+            # We need to flush so we can access the metadata id below
+            session.flush()
+
             LOG.info("Added metadata scenario and version to metadata table")
             process_scenario(session, label, metadata.id, paths)
-        
+
         session.commit()
 
 
@@ -142,9 +251,8 @@ def create_lookup_tables(session: orm.Session, lookup_path: pathlib.Path):
             ntem.db_structure.ACCESS_TO_DB_COLUMNS[table],
         )
         # Some tables we dont want all the columns
-            
-        session.execute(sqlalchemy.insert(table), lookup.to_dict(orient="records"))
 
+        session.execute(sqlalchemy.insert(table), lookup.to_dict(orient="records"))
 
 
 def sort_files(
