@@ -7,7 +7,7 @@ import pydantic
 import caf.ntem as ntem
 
 
-
+_TRACEBACK = ctk.arguments.getenv_bool("NTEM_TRACEBACK", False)
 
 
 def _create_arg_parser() -> argparse.ArgumentParser:
