@@ -97,6 +97,7 @@ def process_scenario(
         LOG.debug("Proccessing Planning Data")
         process_ntem_access_data(
             session,
+            ntem.db_structure.Planning,
             path,
             ntem.ntem_constants.AccessTables.PLANNING.value,
             metadata_id,
@@ -106,6 +107,7 @@ def process_scenario(
         LOG.debug(msg="Proccessing Car Ownership Data")
         process_ntem_access_data(
             session,
+            ntem.db_structure.CarOwnership,
             path,
             ntem.ntem_constants.AccessTables.CAR_OWNERSHIP.value,
             metadata_id,
@@ -115,6 +117,7 @@ def process_scenario(
         LOG.debug("Proccessing TE Car Availability Data")
         process_ntem_access_data(
             session,
+            ntem.db_structure.TripEndDataByCarAvailability,
             path,
             ntem.ntem_constants.AccessTables.TE_CAR_AVAILABILITY.value,
             metadata_id,
@@ -129,6 +132,7 @@ def process_scenario(
         LOG.debug("Proccessing TE Direction Data")
         process_ntem_access_data(
             session,
+            ntem.db_structure.TripEndDataByDirection,
             path,
             ntem.ntem_constants.AccessTables.TE_DIRECTION.value,
             metadata_id,
@@ -145,31 +149,30 @@ def process_scenario(
 
 def process_ntem_access_data(
     session: orm.Session,
+    out_table: ntem.db_structure.Base,
     path: pathlib.Path,
-    table_name: str,
+    access_table_name: str,
     metadata_id: int,
     id_columns: list[str],
     rename_cols: dict[str, str],
 ) -> None:
     """Processes the planning data."""
     LOG.debug("Reading access data")
-    planning = access_to_df(path, table_name)
+    data = access_to_df(path, access_table_name)
     LOG.debug("Processing data")
     # Adjust so the column names match the database structure
-    planning["metadata_id"] = metadata_id
-    planning["zone_type_id"] = 1
+    data["metadata_id"] = metadata_id
+    data["zone_type_id"] = 1
 
     id_columns = ["metadata_id", "zone_type_id"] + id_columns
 
-    planning = planning.rename(columns=rename_cols).melt(
+    data = data.rename(columns=rename_cols).melt(
         id_columns,
         var_name="year",
         value_name="value",
     )
     LOG.debug("Writing data to database")
-    session.execute(
-        sqlalchemy.insert(ntem.db_structure.Planning), planning.to_dict(orient="records")
-    )
+    session.execute(sqlalchemy.insert(out_table), data.to_dict(orient="records"))
 
 
 def process_data(dir: pathlib.Path, output_path: pathlib.Path):
