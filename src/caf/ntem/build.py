@@ -19,33 +19,39 @@ from sqlalchemy import orm
 # Local Imports
 import caf.ntem as ntem
 
-LOG = logging.getLogger(__name__)
 
 _CLEAN_DATABASE = ctk.arguments.getenv_bool("NTEM_CLEAN_DATABASE", False)
 
+LOG = logging.getLogger(__name__)
 
 ACCESS_CONNCECTION_STRING = (
     "access+pyodbc:///?odbc_connect=DRIVER={{Microsoft Access Driver (*.mdb, *.accdb)}};DBQ={}"
 )
 
-CHUNK_SIZE = 1e5
 
 class FileType(NamedTuple):
     """A named tuple for storing the scenario and version of a file."""
 
     scenario: ntem.ntem_constants.Scenarios
+    """The scenario of the file."""
     version: str
+    """The version of the file."""
 
 
 class BuildArgs(ntem.ntem_constants.InputBase):
+    """Input areguments for the build command."""
+
     directory: pydantic.DirectoryPath = pydantic.Field(
-        description="Directory containing NTEM MS Access files"
+        description="Directory containing NTEM MS Access files."
     )
+    """Directory containing NTEM MS Access files"""
     output_path: pydantic.DirectoryPath = pydantic.Field(
         description="Path to directory to output SQLite database file"
     )
+    """Path to directory to output SQLite database file."""
 
     def run(self):
+        """Run the build functionality using the args defined."""
         build_db(self.directory, self.output_path)
 
 
@@ -56,10 +62,10 @@ def access_to_df(
 
     Parameters
     ----------
-    engine : sqlalchemy.Engine
-        The engine to use to access the database.
+    path: pathlib.Path
+        Path to the Access file to unpack.
     table_name : str
-        The name of the table to access.
+        The name of the table to unpack.
     substitute : dict[str, str]|None
         A dictionary to substitute column names. If a column name is not in the dictionary,
         it is removed from the DataFrame. If None, no substitutions are made.
@@ -84,20 +90,31 @@ def access_to_df(
 
 
 def process_scenario(
-    connection: sqlalchemy.Connection, 
+    connection: sqlalchemy.Connection,
     label: FileType,
     metadata_id: int,
     paths: list[pathlib.Path],
 ):
-    """Processes a scenario."""
+    """Process data for a scenario and version and insert in into the database.
+
+    Paramerters
+    -----------
+    connection : sqlalchemy.Connection
+        The connection to the database to insert into.
+    label : FileType
+        The scenario and version of the data.
+    metadata_id : int
+        The id of the metadata for the data to insert.
+    paths : list[pathlib.Path]
+        The paths to the data to unpack and insert.
+    """
 
     for path in tqdm.tqdm(
         paths, desc=f"Processing: {label.scenario.value} - Version:{label.version}"
     ):
 
-        # TODO These functions do the samething on different columns, make them one function
         LOG.debug("Proccessing Planning Data")
-        process_ntem_access_data(
+        _process_ntem_access_file(
             connection,
             ntem.db_structure.Planning,
             path,
@@ -106,8 +123,9 @@ def process_scenario(
             ["zone_id", "planning_data_type"],
             {"ZoneID": "zone_id", "PlanningDataType": "planning_data_type"},
         )
+
         LOG.debug(msg="Proccessing Car Ownership Data")
-        process_ntem_access_data(
+        _process_ntem_access_file(
             connection,
             ntem.db_structure.CarOwnership,
             path,
@@ -116,8 +134,9 @@ def process_scenario(
             ["zone_id", "car_ownership_type"],
             {"ZoneID": "zone_id", "CarOwnershipType": "car_ownership_type"},
         )
+
         LOG.debug("Proccessing TE Car Availability Data")
-        process_ntem_access_data(
+        _process_ntem_access_file(
             connection,
             ntem.db_structure.TripEndDataByCarAvailability,
             path,
@@ -131,8 +150,9 @@ def process_scenario(
                 "CarAvailability": "car_availability_type",
             },
         )
+
         LOG.debug("Proccessing TE Direction Data")
-        process_ntem_access_data(
+        _process_ntem_access_file(
             connection,
             ntem.db_structure.TripEndDataByDirection,
             path,
@@ -149,8 +169,7 @@ def process_scenario(
         )
 
 
-
-def process_ntem_access_data(
+def _process_ntem_access_file(
     connection: sqlalchemy.Connection,
     out_table: type[ntem.db_structure.Base],
     path: pathlib.Path,
@@ -159,7 +178,25 @@ def process_ntem_access_data(
     id_columns: list[str],
     rename_cols: dict[str, str],
 ) -> None:
-    """Processes the planning data."""
+    """Reads, formats and inserts data from the access file path and table given.
+
+    Parameters
+    ----------
+    connection : sqlalchemy.Connection
+        The connection to the database to insert into.
+    out_table : type[ntem.db_structure.Base]
+        The table to insert the data into.
+    path : pathlib.Path
+        The path to the access file to unpack and insert into the database.
+    access_table_name : str
+        The name of the table in the access file to unpack.
+    metadata_id : int
+        The id of the metadata for the data to insert.
+    id_columns : list[str]
+        The ID columns of the data in the table. Note: if the column has been renamed, use the new name.
+    rename_cols : dict[str, str]
+        One to one map between column name in the table and the name to replace it.
+    """
     LOG.debug("Reading access data")
     data = access_to_df(path, access_table_name)
     LOG.debug("Processing data")
@@ -174,16 +211,27 @@ def process_ntem_access_data(
         var_name="year",
         value_name="value",
     )
-    
+
     LOG.debug("Writing data to database")
-    data.to_sql(out_table.__tablename__,connection, if_exists="append", index=False)
-    
+    data.to_sql(out_table.__tablename__, connection, if_exists="append", index=False)
 
-def process_data(dir: pathlib.Path, output_path: pathlib.Path):
-    """Processes the data."""
 
-    data_paths, lookup_path = sort_files(dir.glob("*.mdb"))
-    LOG.info("Retreived and sorted file paths")
+def build_db(dir: pathlib.Path, output_dir: pathlib.Path):
+    """Processes the NTEM data from the access files and outputs a SQLite database.
+
+    Parameters
+    ----------
+    dir : pathlib.Path
+        The directory containing the access files.
+    output_dir : pathlib.Path
+        The path to the directory to output the SQLite database.
+    """
+    output_path = output_dir / "Nice_NTEM.db"
+
+    LOG.info("Retreiving and sorted file paths")
+    data_paths, lookup_path = _sort_files(dir.glob("*.mdb"))
+
+    LOG.info("Created database tables")
     output_engine = sqlalchemy.create_engine(ntem.db_structure.connection_string(output_path))
 
     if _CLEAN_DATABASE:
@@ -191,17 +239,14 @@ def process_data(dir: pathlib.Path, output_path: pathlib.Path):
 
     ntem.db_structure.Base.metadata.create_all(output_engine, checkfirst=False)
 
-    LOG.info("Created database tables")
-
     with sqlalchemy.Connection(output_engine) as connection:
         LOG.info("Creating Lookup Tables")
-        create_lookup_tables(connection.connection(), lookup_path)
+        create_lookup_tables(connection, lookup_path)
         LOG.info("Created Lookup Tables")
         connection.commit()
-    
+
     for label, paths in data_paths.items():
         with orm.Session(output_engine) as session:
-            
             LOG.info(f"Processing {label.scenario.value} - Version:{label.version}")
             metadata = ntem.db_structure.MetaData(
                 scenario=label.scenario.value, version=label.version, share_type_id=1
@@ -209,7 +254,6 @@ def process_data(dir: pathlib.Path, output_path: pathlib.Path):
             session.add(metadata)
             # We need to flush so we can access the metadata id below
             session.flush()
-            
 
             LOG.info("Added metadata scenario and version to metadata table")
             process_scenario(session.connection(), label, metadata.id, paths)
@@ -217,7 +261,15 @@ def process_data(dir: pathlib.Path, output_path: pathlib.Path):
 
 
 def create_lookup_tables(connection: sqlalchemy.Connection, lookup_path: pathlib.Path):
-    """Creates the lookup tables."""
+    """Insert lookup tables into the database.
+
+    Parameters
+    ----------
+    connection : sqlalchemy.Connection
+        The connection to the database to insert into.
+    lookup_path : pathlib.Path
+        The path to the access file containing the lookup tables.
+    """
 
     for table in tqdm.tqdm(ntem.db_structure.LOOKUP_TABLES, desc="Creating Lookup Tables"):
 
@@ -226,13 +278,10 @@ def create_lookup_tables(connection: sqlalchemy.Connection, lookup_path: pathlib
             ntem.db_structure.DB_TO_ACCESS_TABLE_LOOKUP[table],
             ntem.db_structure.ACCESS_TO_DB_COLUMNS[table],
         )
-        # Some tables we dont want all the columns
-
         lookup.to_sql(table.__tablename__, connection, if_exists="append", index=False)
-        
 
 
-def sort_files(
+def _sort_files(
     files: Iterable[pathlib.Path],
 ) -> tuple[dict[FileType, list[pathlib.Path]], pathlib.Path]:
     """Sorts the files based on the scenario."""
@@ -254,8 +303,3 @@ def sort_files(
             lookup = file
 
     return sorted_files, lookup
-
-
-def build_db(dir: pathlib.Path, out_path: pathlib.Path):
-
-    process_data(dir, out_path / "Nice_NTEM.db")

@@ -46,7 +46,7 @@ def _create_arg_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def parse_args() -> ntem.ntem_constants.InputBase:
+def _parse_args() -> ntem.ntem_constants.InputBase:
     parser = _create_arg_parser()
     args = parser.parse_args(None if len(sys.argv[1:]) > 0 else ["-h"])
     try:
@@ -59,7 +59,8 @@ def parse_args() -> ntem.ntem_constants.InputBase:
 
 
 def main():
-    parameters = parse_args()
+    """Run the caf ntem module."""
+    parameters = _parse_args()
 
     log_file = parameters.output_path / "caf_ntem.log"
     details = ctk.ToolDetails(

@@ -21,11 +21,15 @@ def schema_connection_string(output_path: pathlib.Path) -> str:
 
 
 class Base(orm.DeclarativeBase):
+    """Base class for metadata tables."""
+
     pass
     # __table_args__ = {"schema": "ntem"}
 
 
 class MetaData(Base):
+    """Metadata table for the database."""
+
     __tablename__ = "metadata"
     id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
     share_type_id: orm.Mapped[int | None]
@@ -34,36 +38,48 @@ class MetaData(Base):
 
 
 class PlanningDataTypes(Base):
+    """Lookup Table for planning data types."""
+
     __tablename__ = "planning_data_types"
     id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
     name: orm.Mapped[str]
 
 
 class CarOwnershipTypes(Base):
+    """Lookup Table for car ownership types."""
+
     __tablename__ = "car_ownership_types"
     id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
     name: orm.Mapped[str]
 
 
 class CarAvailabilityTypes(Base):
+    """Lookup Table for car availability types."""
+
     __tablename__ = "car_availability_types"
     id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
     name: orm.Mapped[str]
 
 
 class PurposeTypes(Base):
+    """Lookup Table for purpose types."""
+
     __tablename__ = "purpose_types"
     id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
     name: orm.Mapped[str]
 
 
 class ModeTypes(Base):
+    """Lookup Table for mode types."""
+
     __tablename__ = "mode_types"
     id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
     name: orm.Mapped[str]
 
 
 class TimePeriodTypes(Base):
+    """Lookup Table for time period types."""
+
     __tablename__ = "time_period_types"
     id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
     divide_by: orm.Mapped[int]
@@ -71,12 +87,16 @@ class TimePeriodTypes(Base):
 
 
 class TripType(Base):
+    """Lookup Table for trip types."""
+
     __tablename__ = "trip_type"
     id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
     name: orm.Mapped[str]
 
 
 class Region(Base):
+    """Lookup Table for region."""
+
     __tablename__ = "region"
     id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
     abbreviation: orm.Mapped[str]
@@ -84,6 +104,8 @@ class Region(Base):
 
 
 class Authority(Base):
+    """Lookup Table for authority."""
+
     __tablename__ = "authority"
     id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
     code: orm.Mapped[str]
@@ -91,12 +113,16 @@ class Authority(Base):
 
 
 class County(Base):
+    """Lookup Table for county."""
+
     __tablename__ = "county"
     id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
     name: orm.Mapped[str]
 
 
 class Years(Base):
+    """Lookup Table for years."""
+
     __tablename__ = "years"
     id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
     code: orm.Mapped[str]
@@ -104,6 +130,8 @@ class Years(Base):
 
 
 class GeoLookup(Base):
+    """Lookup Table between zone, authority, county and region."""
+
     __tablename__ = "geo_lookup"
     zone_id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
     zone_name: orm.Mapped[str]
@@ -114,6 +142,8 @@ class GeoLookup(Base):
 
 
 class TripEndDataByCarAvailability(Base):
+    """Table for trip end data by car availability."""
+
     __tablename__ = "trip_end_data_by_car_availability"
     id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
     metadata_id: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(MetaData.id))
@@ -129,6 +159,8 @@ class TripEndDataByCarAvailability(Base):
 
 
 class TripEndDataByDirection(Base):
+    """Table for trip end data by direction."""
+
     __tablename__ = "trip_end_data_by_direction"
     id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
     metadata_id: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(MetaData.id))
@@ -143,6 +175,8 @@ class TripEndDataByDirection(Base):
 
 
 class CarOwnership(Base):
+    """Table for car ownership data."""
+
     __tablename__ = "car_ownership"
     id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
     metadata_id: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(MetaData.id))
@@ -156,6 +190,8 @@ class CarOwnership(Base):
 
 
 class Planning(Base):
+    """Table for planning data."""
+
     __tablename__ = "planning"
     id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
     metadata_id: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(MetaData.id))
@@ -183,6 +219,7 @@ DB_TO_ACCESS_TABLE_LOOKUP: dict[type[Base], str] = {
     Planning: "Planning",
     Years: "tblLookUpYrs83",
 }
+"""Lookup between database tables and MS Access table names."""
 
 ACCESS_TO_DB_COLUMNS: dict[type[Base], dict[str, str]] = {
     CarAvailabilityTypes: {
@@ -241,6 +278,7 @@ ACCESS_TO_DB_COLUMNS: dict[type[Base], dict[str, str]] = {
         "NTEM7ZoneCode": "zone_code",
     },
 }
+"""Lookup between MS Access columns and database columns."""
 
 LOOKUP_TABLES: list[type[Base]] = [
     CarAvailabilityTypes,
@@ -248,10 +286,10 @@ LOOKUP_TABLES: list[type[Base]] = [
     PurposeTypes,
     TimePeriodTypes,
     TripType,
-    #    Years,
     PlanningDataTypes,
     Region,
     Authority,
     County,
     GeoLookup,
 ]
+"""List of lookup tables."""

@@ -20,6 +20,8 @@ class InputBase(ctk.BaseConfig, abc.ABC):
 
 
 class Scenarios(enum.Enum):
+    """Defined valid NTEM scenarios."""
+
     CORE: str = "Core"
     HIGH: str = "High"
     LOW: str = "Low"
@@ -29,6 +31,8 @@ class Scenarios(enum.Enum):
 
 
 class AccessTables(enum.Enum):
+    """Defines the names of the access data tables."""
+
     PLANNING: str = "Planning"
     CAR_OWNERSHIP: str = "CarOwnership"
     TE_CAR_AVAILABILITY: str = "TripEndDataByCarAvailability"
