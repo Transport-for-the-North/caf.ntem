@@ -1,6 +1,7 @@
 # Built-Ins
 import argparse
-import pathlib
+import logging
+import os
 import sys
 
 # Third Party
@@ -11,6 +12,7 @@ import pydantic
 import caf.ntem as ntem
 
 _TRACEBACK = ctk.arguments.getenv_bool("NTEM_TRACEBACK", False)
+_LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 
 
 def _create_arg_parser() -> argparse.ArgumentParser:
@@ -64,8 +66,16 @@ def main():
         __package__,
         ntem.__version__,  # ntem.__homepage__, ntem.__source_url__
     )
-
-    with ctk.LogHelper(__package__, details, log_file=log_file):
+    with ctk.LogHelper(__package__, details, console=False, log_file=log_file) as log:
+        if _LOG_LEVEL.lower() == "debug":
+            log.add_console_handler(log_level=logging.DEBUG)
+        elif _LOG_LEVEL.lower() == "info":
+            log.add_console_handler(log_level=logging.INFO)
+        else:
+            raise NotImplementedError(
+                "The Enviroment constant 'LOG_LEVEL' should"
+                " either be set to 'debug' or 'info"
+            )
 
         try:
             parameters.run()
