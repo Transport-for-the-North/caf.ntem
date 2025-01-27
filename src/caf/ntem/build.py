@@ -27,6 +27,7 @@ ACCESS_CONNCECTION_STRING = (
     "access+pyodbc:///?odbc_connect=DRIVER={{Microsoft Access Driver (*.mdb, *.accdb)}};DBQ={}"
 )
 
+CHUNK_SIZE = 1e5
 
 class FileType(NamedTuple):
     """A named tuple for storing the scenario and version of a file."""
@@ -150,7 +151,7 @@ def process_scenario(
 
 def process_ntem_access_data(
     session: orm.Session,
-    out_table: ntem.db_structure.Base,
+    out_table: type[ntem.db_structure.Base],
     path: pathlib.Path,
     access_table_name: str,
     metadata_id: int,
@@ -173,7 +174,9 @@ def process_ntem_access_data(
         value_name="value",
     )
     LOG.debug("Writing data to database")
-    session.execute(sqlalchemy.insert(out_table), data.to_dict(orient="records"))
+    for chunk in ctk.pandas_utils.chunk_df(data, int(CHUNK_SIZE)):
+        data_to_insert = chunk.to_dict(orient="records")
+        session.execute(sqlalchemy.insert(out_table), data_to_insert)
 
 
 def process_data(dir: pathlib.Path, output_path: pathlib.Path):
