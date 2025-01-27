@@ -1,5 +1,5 @@
-# Required libraries
-
-# Example
-# numpy>=1.25.0
-# pandas>=2.2.2
+pandas>=2.2.3
+tqdm>=4.67.1
+caf.toolkit>=0.9.0
+sqlalchemy>=2.0.37
+sqlalchemy-access>=2.0.3
