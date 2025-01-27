@@ -85,7 +85,6 @@ def access_to_df(
 
 def process_scenario(
     connection: sqlalchemy.Connection, 
-    #session: orm.Session,
     label: FileType,
     metadata_id: int,
     paths: list[pathlib.Path],
@@ -148,12 +147,11 @@ def process_scenario(
                 "TripType": "trip_type",
             },
         )
-        session.commit()
+
 
 
 def process_ntem_access_data(
     connection: sqlalchemy.Connection,
-    #session: orm.Session,
     out_table: type[ntem.db_structure.Base],
     path: pathlib.Path,
     access_table_name: str,
@@ -176,13 +174,10 @@ def process_ntem_access_data(
         var_name="year",
         value_name="value",
     )
-
-    data.to_sql(out_table.__tablename__,session.connection())
-    #LOG.debug("Writing data to database")
-    #for chunk in ctk.pandas_utils.chunk_df(data, int(CHUNK_SIZE)):
-    #    data_to_insert = chunk.to_dict(orient="records")
-    #    session.execute(sqlalchemy.insert(out_table), data_to_insert)
-
+    
+    LOG.debug("Writing data to database")
+    data.to_sql(out_table.__tablename__,connection, if_exists="append", index=False)
+    
 
 def process_data(dir: pathlib.Path, output_path: pathlib.Path):
     """Processes the data."""
@@ -198,11 +193,15 @@ def process_data(dir: pathlib.Path, output_path: pathlib.Path):
 
     LOG.info("Created database tables")
 
-    with orm.Session(output_engine) as session:
+    with sqlalchemy.Connection(output_engine) as connection:
         LOG.info("Creating Lookup Tables")
-        create_lookup_tables(session, lookup_path)
+        create_lookup_tables(connection.connection(), lookup_path)
         LOG.info("Created Lookup Tables")
-        for label, paths in data_paths.items():
+        connection.commit()
+    
+    for label, paths in data_paths.items():
+        with orm.Session(output_engine) as session:
+            
             LOG.info(f"Processing {label.scenario.value} - Version:{label.version}")
             metadata = ntem.db_structure.MetaData(
                 scenario=label.scenario.value, version=label.version, share_type_id=1
@@ -210,14 +209,14 @@ def process_data(dir: pathlib.Path, output_path: pathlib.Path):
             session.add(metadata)
             # We need to flush so we can access the metadata id below
             session.flush()
+            
 
             LOG.info("Added metadata scenario and version to metadata table")
             process_scenario(session.connection(), label, metadata.id, paths)
-        # this commit should be redundant but is here to be safe
-        session.commit()
+            session.commit()
 
 
-def create_lookup_tables(session: orm.Session, lookup_path: pathlib.Path):
+def create_lookup_tables(connection: sqlalchemy.Connection, lookup_path: pathlib.Path):
     """Creates the lookup tables."""
 
     for table in tqdm.tqdm(ntem.db_structure.LOOKUP_TABLES, desc="Creating Lookup Tables"):
@@ -229,7 +228,7 @@ def create_lookup_tables(session: orm.Session, lookup_path: pathlib.Path):
         )
         # Some tables we dont want all the columns
 
-        session.execute(sqlalchemy.insert(table), lookup.to_dict(orient="records"))
+        lookup.to_sql(table.__tablename__, connection, if_exists="append", index=False)
         
 
 
