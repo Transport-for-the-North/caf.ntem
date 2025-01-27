@@ -145,6 +145,7 @@ def process_scenario(
                 "TripType": "trip_type",
             },
         )
+        session.commit()
 
 
 def process_ntem_access_data(
@@ -204,7 +205,7 @@ def process_data(dir: pathlib.Path, output_path: pathlib.Path):
 
             LOG.info("Added metadata scenario and version to metadata table")
             process_scenario(session, label, metadata.id, paths)
-
+        # this commit should be redundant but is here to be safe
         session.commit()
 
 
@@ -221,6 +222,7 @@ def create_lookup_tables(session: orm.Session, lookup_path: pathlib.Path):
         # Some tables we dont want all the columns
 
         session.execute(sqlalchemy.insert(table), lookup.to_dict(orient="records"))
+        
 
 
 def sort_files(
