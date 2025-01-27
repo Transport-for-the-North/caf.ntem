@@ -12,6 +12,7 @@ import caf.toolkit as ctk
 import pandas as pd
 import pydantic
 import sqlalchemy
+import sqlalchemy.connectors
 import tqdm
 from sqlalchemy import orm
 
@@ -83,7 +84,8 @@ def access_to_df(
 
 
 def process_scenario(
-    session: orm.Session,
+    connection: sqlalchemy.Connection, 
+    #session: orm.Session,
     label: FileType,
     metadata_id: int,
     paths: list[pathlib.Path],
@@ -97,7 +99,7 @@ def process_scenario(
         # TODO These functions do the samething on different columns, make them one function
         LOG.debug("Proccessing Planning Data")
         process_ntem_access_data(
-            session,
+            connection,
             ntem.db_structure.Planning,
             path,
             ntem.ntem_constants.AccessTables.PLANNING.value,
@@ -107,7 +109,7 @@ def process_scenario(
         )
         LOG.debug(msg="Proccessing Car Ownership Data")
         process_ntem_access_data(
-            session,
+            connection,
             ntem.db_structure.CarOwnership,
             path,
             ntem.ntem_constants.AccessTables.CAR_OWNERSHIP.value,
@@ -117,7 +119,7 @@ def process_scenario(
         )
         LOG.debug("Proccessing TE Car Availability Data")
         process_ntem_access_data(
-            session,
+            connection,
             ntem.db_structure.TripEndDataByCarAvailability,
             path,
             ntem.ntem_constants.AccessTables.TE_CAR_AVAILABILITY.value,
@@ -132,7 +134,7 @@ def process_scenario(
         )
         LOG.debug("Proccessing TE Direction Data")
         process_ntem_access_data(
-            session,
+            connection,
             ntem.db_structure.TripEndDataByDirection,
             path,
             ntem.ntem_constants.AccessTables.TE_DIRECTION.value,
@@ -150,7 +152,8 @@ def process_scenario(
 
 
 def process_ntem_access_data(
-    session: orm.Session,
+    connection: sqlalchemy.Connection,
+    #session: orm.Session,
     out_table: type[ntem.db_structure.Base],
     path: pathlib.Path,
     access_table_name: str,
@@ -173,10 +176,12 @@ def process_ntem_access_data(
         var_name="year",
         value_name="value",
     )
-    LOG.debug("Writing data to database")
-    for chunk in ctk.pandas_utils.chunk_df(data, int(CHUNK_SIZE)):
-        data_to_insert = chunk.to_dict(orient="records")
-        session.execute(sqlalchemy.insert(out_table), data_to_insert)
+
+    data.to_sql(out_table.__tablename__,session.connection())
+    #LOG.debug("Writing data to database")
+    #for chunk in ctk.pandas_utils.chunk_df(data, int(CHUNK_SIZE)):
+    #    data_to_insert = chunk.to_dict(orient="records")
+    #    session.execute(sqlalchemy.insert(out_table), data_to_insert)
 
 
 def process_data(dir: pathlib.Path, output_path: pathlib.Path):
@@ -207,7 +212,7 @@ def process_data(dir: pathlib.Path, output_path: pathlib.Path):
             session.flush()
 
             LOG.info("Added metadata scenario and version to metadata table")
-            process_scenario(session, label, metadata.id, paths)
+            process_scenario(session.connection(), label, metadata.id, paths)
         # this commit should be redundant but is here to be safe
         session.commit()
 
