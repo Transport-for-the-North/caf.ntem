@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
-# Third Party
+# Built-Ins
 import pathlib
+
+# Third Party
 import sqlalchemy as sqlalchemy
 from sqlalchemy import orm
 
@@ -12,13 +14,15 @@ def connection_string(output_path: pathlib.Path) -> str:
     """Creates a connection string to the database."""
     return f"sqlite:///{output_path.resolve()}"
 
+
 def schema_connection_string(output_path: pathlib.Path) -> str:
     """Creates a connection string to the database."""
     return f"ATTACH DATABASE {output_path.resolve()} AS ntem"
 
+
 class Base(orm.DeclarativeBase):
     pass
-    #__table_args__ = {"schema": "ntem"}
+    # __table_args__ = {"schema": "ntem"}
 
 
 class MetaData(Base):
@@ -132,9 +136,7 @@ class TripEndDataByDirection(Base):
     zone_type_id: orm.Mapped[int]
     purpose: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(PurposeTypes.id))
     mode: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(ModeTypes.id))
-    time_period: orm.Mapped[int] = orm.mapped_column(
-        sqlalchemy.ForeignKey(TimePeriodTypes.id)
-    )
+    time_period: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(TimePeriodTypes.id))
     trip_type: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(TripType.id))
     year: orm.Mapped[int]
     value: orm.Mapped[float]
@@ -246,7 +248,7 @@ LOOKUP_TABLES: list[type[Base]] = [
     PurposeTypes,
     TimePeriodTypes,
     TripType,
-#    Years,
+    #    Years,
     PlanningDataTypes,
     Region,
     Authority,

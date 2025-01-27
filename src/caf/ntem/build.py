@@ -8,13 +8,14 @@ import re
 from typing import Iterable, NamedTuple
 
 # Third Party
+import caf.toolkit as ctk
 import pandas as pd
 import pydantic
 import sqlalchemy
-from sqlalchemy import orm
-import caf.toolkit as ctk
 import tqdm
+from sqlalchemy import orm
 
+# Local Imports
 import caf.ntem as ntem
 
 LOG = logging.getLogger(__name__)
@@ -92,118 +93,82 @@ def process_scenario(
         paths, desc=f"Processing: {label.scenario.value} - Version:{label.version}"
     ):
 
-        process_planning_data(session, path, metadata_id)
-        process_car_ownership_data(session, path, metadata_id)
-        process_te_car_availability_data(session, path, metadata_id)
-        process_te_direction_data(session, path, metadata_id)
+        # TODO These functions do the samething on different columns, make them one function
+        LOG.debug("Proccessing Planning Data")
+        process_ntem_access_data(
+            session,
+            path,
+            ntem.ntem_constants.AccessTables.PLANNING.value,
+            metadata_id,
+            ["zone_id", "planning_data_type"],
+            {"ZoneID": "zone_id", "PlanningDataType": "planning_data_type"},
+        )
+        LOG.debug(msg="Proccessing Car Ownership Data")
+        process_ntem_access_data(
+            session,
+            path,
+            ntem.ntem_constants.AccessTables.CAR_OWNERSHIP.value,
+            metadata_id,
+            ["zone_id", "car_ownership_type"],
+            {"ZoneID": "zone_id", "CarOwnershipType": "car_ownership_type"},
+        )
+        LOG.debug("Proccessing TE Car Availability Data")
+        process_ntem_access_data(
+            session,
+            path,
+            ntem.ntem_constants.AccessTables.TE_CAR_AVAILABILITY.value,
+            metadata_id,
+            ["zone_id", "purpose", "mode", "car_availability_type"],
+            {
+                "ZoneID": "zone_id",
+                "Purpose": "purpose",
+                "Mode": "mode",
+                "CarAvailability": "car_availability_type",
+            },
+        )
+        LOG.debug("Proccessing TE Direction Data")
+        process_ntem_access_data(
+            session,
+            path,
+            ntem.ntem_constants.AccessTables.TE_DIRECTION.value,
+            metadata_id,
+            ["zone_id", "purpose", "mode", "time_period", "trip_type"],
+            {
+                "ZoneID": "zone_id",
+                "Purpose": "purpose",
+                "Mode": "mode",
+                "TimePeriod": "time_period",
+                "TripType": "trip_type",
+            },
+        )
 
 
-def process_planning_data(
-    session: orm.Session, path: pathlib.Path, metadata_id: int
+def process_ntem_access_data(
+    session: orm.Session,
+    path: pathlib.Path,
+    table_name: str,
+    metadata_id: int,
+    id_columns: list[str],
+    rename_cols: dict[str, str],
 ) -> None:
     """Processes the planning data."""
-
-    planning = access_to_df(path, ntem.ntem_constants.AccessTables.PLANNING.value)
-
+    LOG.debug("Reading access data")
+    planning = access_to_df(path, table_name)
+    LOG.debug("Processing data")
     # Adjust so the column names match the database structure
     planning["metadata_id"] = metadata_id
     planning["zone_type_id"] = 1
-    planning = planning.rename(
-        columns={"ZoneID": "zone_id", "PlanningDataType": "planning_data_type"}
-    ).melt(
-        ["metadata_id", "zone_id", "zone_type_id", "planning_data_type"],
+
+    id_columns = ["metadata_id", "zone_type_id"] + id_columns
+
+    planning = planning.rename(columns=rename_cols).melt(
+        id_columns,
         var_name="year",
         value_name="value",
     )
-
+    LOG.debug("Writing data to database")
     session.execute(
         sqlalchemy.insert(ntem.db_structure.Planning), planning.to_dict(orient="records")
-    )
-
-
-def process_car_ownership_data(
-    session: orm.Session, path: pathlib.Path, metadata_id: int
-) -> None:
-    """Processes the planning data."""
-
-    car_ownership = access_to_df(path, ntem.ntem_constants.AccessTables.CAR_OWNERSHIP.value)
-
-    # Adjust so the column names match the database structure
-    car_ownership["metadata_id"] = metadata_id
-    car_ownership["zone_type_id"] = 1
-    car_ownership = car_ownership.rename(
-        columns={"ZoneID": "zone_id", "CarOwnershipType": "car_ownership_type"}
-    ).melt(
-        ["metadata_id", "zone_id", "zone_type_id", "car_ownership_type"],
-        var_name="year",
-        value_name="value",
-    )
-
-    session.execute(
-        sqlalchemy.insert(ntem.db_structure.CarOwnership),
-        car_ownership.to_dict(orient="records"),
-    )
-
-
-def process_te_car_availability_data(
-    session: orm.Session, path: pathlib.Path, metadata_id: int
-) -> None:
-    """Processes the planning data."""
-
-    te_car_availability = access_to_df(
-        path, ntem.ntem_constants.AccessTables.TE_CAR_AVAILABILITY.value
-    )
-
-    # Adjust so the column names match the database structure
-    te_car_availability["metadata_id"] = metadata_id
-    te_car_availability["zone_type_id"] = 1
-    te_car_availability = te_car_availability.rename(
-        columns={
-            "ZoneID": "zone_id",
-            "Purpose": "purpose",
-            "Mode": "mode",
-            "CarAvailability": "car_availability_type",
-        }
-    ).melt(
-        ["metadata_id", "zone_id", "zone_type_id", "purpose", "mode", "car_availability_type"],
-        var_name="year",
-        value_name="value",
-    )
-
-    session.execute(
-        sqlalchemy.insert(ntem.db_structure.TripEndDataByCarAvailability),
-        te_car_availability.to_dict(orient="records"),
-    )
-
-def process_te_direction_data(
-    session: orm.Session, path: pathlib.Path, metadata_id: int
-) -> None:
-    """Processes the planning data."""
-
-    te_direction = access_to_df(
-        path, ntem.ntem_constants.AccessTables.TE_DIRECTION.value
-    )
-
-    # Adjust so the column names match the database structure
-    te_direction["metadata_id"] = metadata_id
-    te_direction["zone_type_id"] = 1
-    te_direction = te_direction.rename(
-        columns={
-            "ZoneID": "zone_id",
-            "Purpose": "purpose",
-            "Mode": "mode",
-            "TimePeriod": "time_period",
-            "TripType": "trip_type",
-        }
-    ).melt(
-        ["metadata_id", "zone_id", "zone_type_id", "purpose", "mode", "time_period", "trip_type"],
-        var_name="year",
-        value_name="value",
-    )
-
-    session.execute(
-        sqlalchemy.insert(ntem.db_structure.TripEndDataByDirection),
-        te_direction.to_dict(orient="records"),
     )
 
 
