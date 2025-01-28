@@ -24,7 +24,7 @@ def _create_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "-v",
         "--version",
-        help="show caf.toolkit version and exit",
+        help="show caf.ntem version and exit",
         action="version",
         version=f"{__package__} {ctk.__version__}",
     )
@@ -34,8 +34,8 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         description="List of all available sub-commands",
     )
 
-    translation_class = ctk.arguments.ModelArguments(ntem.build.BuildArgs)
-    translation_class.add_subcommands(
+    build_class = ctk.arguments.ModelArguments(ntem.build.BuildArgs)
+    build_class.add_subcommands(
         subparsers,
         "build",
         help="Build an SQLite database from NTEM MS Access files",
