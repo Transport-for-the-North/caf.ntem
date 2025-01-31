@@ -19,7 +19,6 @@ from sqlalchemy import orm
 # Local Imports
 import caf.ntem as ntem
 
-
 _CLEAN_DATABASE = ctk.arguments.getenv_bool("NTEM_CLEAN_DATABASE", False)
 
 LOG = logging.getLogger(__name__)
@@ -94,6 +93,7 @@ def process_scenario(
     label: FileType,
     metadata_id: int,
     paths: list[pathlib.Path],
+    id_sub: dict[int, int],
 ):
     """Process data for a scenario and version and insert in into the database.
 
@@ -122,6 +122,7 @@ def process_scenario(
             metadata_id,
             ["zone_id", "planning_data_type"],
             {"ZoneID": "zone_id", "PlanningDataType": "planning_data_type"},
+            id_sub,
         )
 
         LOG.debug(msg="Proccessing Car Ownership Data")
@@ -133,6 +134,7 @@ def process_scenario(
             metadata_id,
             ["zone_id", "car_ownership_type"],
             {"ZoneID": "zone_id", "CarOwnershipType": "car_ownership_type"},
+            id_sub,
         )
 
         LOG.debug("Proccessing TE Car Availability Data")
@@ -149,6 +151,7 @@ def process_scenario(
                 "Mode": "mode",
                 "CarAvailability": "car_availability_type",
             },
+            id_sub,
         )
 
         LOG.debug("Proccessing TE Direction Data")
@@ -166,6 +169,7 @@ def process_scenario(
                 "TimePeriod": "time_period",
                 "TripType": "trip_type",
             },
+            id_sub,
         )
 
 
@@ -177,6 +181,7 @@ def _process_ntem_access_file(
     metadata_id: int,
     id_columns: list[str],
     rename_cols: dict[str, str],
+    id_substitution: dict[int, int],
 ) -> None:
     """Reads, formats and inserts data from the access file path and table given.
 
@@ -211,6 +216,7 @@ def _process_ntem_access_file(
         var_name="year",
         value_name="value",
     )
+    data["zone_id"] = data["zone_id"].replace(id_substitution)
 
     LOG.debug("Writing data to database")
     data.to_sql(out_table.__tablename__, connection, if_exists="append", index=False)
@@ -239,14 +245,15 @@ def build_db(dir: pathlib.Path, output_dir: pathlib.Path):
 
     ntem.db_structure.Base.metadata.create_all(output_engine, checkfirst=False)
 
-    with sqlalchemy.Connection(output_engine) as connection:
-        LOG.info("Creating Lookup Tables")
-        create_lookup_tables(connection, lookup_path)
-        LOG.info("Created Lookup Tables")
-        connection.commit()
+    with orm.Session(output_engine) as session:
 
-    for label, paths in data_paths.items():
-        with orm.Session(output_engine) as session:
+        LOG.info("Creating Lookup Tables")
+        create_lookup_tables(session.connection(), lookup_path)
+        ntem_to_db_conversion = create_geo_lookup_table(session, lookup_path, "NTEM", "8.0")
+        LOG.info("Created Lookup Tables")
+        session.commit()
+
+        for label, paths in data_paths.items():
             LOG.info(f"Processing {label.scenario.value} - Version:{label.version}")
             metadata = ntem.db_structure.MetaData(
                 scenario=label.scenario.value, version=label.version, share_type_id=1
@@ -256,7 +263,9 @@ def build_db(dir: pathlib.Path, output_dir: pathlib.Path):
             session.flush()
 
             LOG.info("Added metadata scenario and version to metadata table")
-            process_scenario(session.connection(), label, metadata.id, paths)
+            process_scenario(
+                session.connection(), label, metadata.id, paths, ntem_to_db_conversion
+            )
             session.commit()
 
 
@@ -275,10 +284,135 @@ def create_lookup_tables(connection: sqlalchemy.Connection, lookup_path: pathlib
 
         lookup = access_to_df(
             lookup_path,
-            ntem.db_structure.DB_TO_ACCESS_TABLE_LOOKUP[table],
-            ntem.db_structure.ACCESS_TO_DB_COLUMNS[table],
+            ntem.db_structure.DB_TO_ACCESS_TABLE_LOOKUP[table.__tablename__],
+            ntem.db_structure.ACCESS_TO_DB_COLUMNS[table.__tablename__],
         )
         lookup.to_sql(table.__tablename__, connection, if_exists="append", index=False)
+
+
+def create_geo_lookup_table(
+    session: orm.Session, lookup_path: pathlib.Path, source: str, version: str
+) -> pd.DataFrame:
+    """Creates and inserts geo lookup tables using the access data.
+
+    Parameters
+    ----------
+    session : orm.Session
+        Session to write geo-lookup tables to.
+    lookup_path : pathlib.Path
+        Path to lookup Access file.
+    source : str
+        Name of the source.
+    version : str
+        Version of the source.
+
+    Returns
+    -------
+    pd.DataFrame
+        lookup between NTEM zone ids and the IDs in the database
+    """
+    # add zone types so we can access IDs later
+    zone_type = ntem.db_structure.ZoneType(name="zone", source=source, version=version)
+    session.add(zone_type)
+
+    authority_type = ntem.db_structure.ZoneType(
+        name="authority", source=source, version=version
+    )
+    session.add(authority_type)
+
+    county_type = ntem.db_structure.ZoneType(name="county", source=source, version=version)
+    session.add(county_type)
+
+    region_type = ntem.db_structure.ZoneType(name="region", source=source, version=version)
+    session.add(region_type)
+
+    session.flush()
+
+    zones_id_lookup = _process_geo_lookup_data(
+        "ntem_zoning", zone_type.id, lookup_path, session
+    )
+
+    system_id_lookup: dict[str, int] = {
+        "region": region_type.id,
+        "county": county_type.id,
+        "authority": authority_type.id,
+    }
+
+    # lookup data will be used to create the geolookup table
+    lookup_data = access_to_df(
+        lookup_path,
+        ntem.db_structure.DB_TO_ACCESS_TABLE_LOOKUP["ntem_zoning"],
+        ntem.db_structure.ACCESS_TO_DB_COLUMNS["ntem_zoning"],
+    )
+    lookup_data["ntem_zoning_id"] = lookup_data["ntem_zoning_id"].replace(zones_id_lookup)
+    lookup_data = lookup_data.rename(columns={"ntem_zoning_id": "from_zone_id"})
+    lookup_data["from_zone_type_id"] = zone_type.id
+
+    for system, id in system_id_lookup.items():
+        id_lookup = _process_geo_lookup_data(system, id, lookup_path, session)
+        system_col = f"{system}_id"
+
+        system_lookup = lookup_data.rename(columns={system_col: "to_zone_id"})
+        system_lookup["to_zone_id"] = system_lookup["to_zone_id"].replace(id_lookup)
+        system_lookup["to_zone_type_id"] = id
+        system_lookup = system_lookup[
+            ["from_zone_id", "from_zone_type_id", "to_zone_id", "to_zone_type_id"]
+        ]
+
+        system_lookup.to_sql(
+            ntem.db_structure.GeoLookup.__tablename__,
+            session.connection(),
+            if_exists="replace",
+            index=False,
+        )
+
+    return zones_id_lookup
+
+
+def _process_geo_lookup_data(
+    system: str, system_id: int, lookup_path: pathlib.Path, session: orm.Session
+) -> dict[int, int]:
+    """reads zoning lookups ands adds data to Zones table. Returns NTEM -> db conversion."""
+    # need to pass the session since we query data immediately after writing so we need to flush
+    system_data = access_to_df(
+        lookup_path,
+        ntem.db_structure.DB_TO_ACCESS_TABLE_LOOKUP[system],
+        ntem.db_structure.ACCESS_TO_DB_COLUMNS[system],
+    )
+    system_data["zone_type_id"] = system_id
+
+    if "source_id_or_code" in system_data.columns:
+        write_columns = ["zone_type_id", "name", "source_id_or_code"]
+        join_col = "source_id_or_code"
+    else:
+        write_columns = ["zone_type_id", "name"]
+        join_col = "name"
+
+    system_data[write_columns].to_sql(
+        ntem.db_structure.Zones.__tablename__,
+        session.connection(),
+        if_exists="append",
+        index=False,
+    )
+
+    session.flush()
+
+    id_lookup = pd.read_sql(
+        sqlalchemy.select(ntem.db_structure.Zones).where(
+            ntem.db_structure.Zones.zone_type_id == system_id
+        ),
+        session.connection(),
+    )
+    id_lookup = id_lookup.merge(
+        system_data[["ntem_zoning_id", join_col]],
+        how="left",
+        on=join_col,
+        validate="one_to_one",
+    )
+
+    id_lookup = id_lookup.rename(columns={"ntem_zoning_id": f"{system}_id"})
+
+    return id_lookup.set_index(f"{system}_id")["id"].to_dict()
 
 
 def _sort_files(

@@ -94,51 +94,35 @@ class TripType(Base):
     name: orm.Mapped[str]
 
 
-class Region(Base):
-    """Lookup Table for region."""
-
-    __tablename__ = "region"
-    id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
-    abbreviation: orm.Mapped[str]
-    name: orm.Mapped[str]
-
-
-class Authority(Base):
-    """Lookup Table for authority."""
-
-    __tablename__ = "authority"
-    id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
-    code: orm.Mapped[str]
-    name: orm.Mapped[str]
-
-
-class County(Base):
-    """Lookup Table for county."""
-
-    __tablename__ = "county"
+class ZoneType(Base):
+    __tablename__ = "zone_type_list"
     id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
     name: orm.Mapped[str]
+    source: orm.Mapped[str]
+    version: orm.Mapped[str]
 
 
-class Years(Base):
-    """Lookup Table for years."""
-
-    __tablename__ = "years"
+class Zones(Base):
+    __tablename__ = "zones"
     id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
-    code: orm.Mapped[str]
-    year: orm.Mapped[int]
+    zone_type_id: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(ZoneType.id))
+    name: orm.Mapped[str]
+    source_id_or_code: orm.Mapped[str | None]
 
 
 class GeoLookup(Base):
-    """Lookup Table between zone, authority, county and region."""
+    """Lookup Table between zoning systems."""
 
     __tablename__ = "geo_lookup"
-    zone_id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
-    zone_name: orm.Mapped[str]
-    zone_code: orm.Mapped[str]
-    authority_id: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(Authority.id))
-    county_id: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(County.id))
-    region_id: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(Region.id))
+    id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
+    from_zone_id: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(Zones.id))
+    from_zone_type_id: orm.Mapped[str] = orm.mapped_column(
+        sqlalchemy.ForeignKey(Zones.zone_type_id)
+    )
+    to_zone_id: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(Zones.id))
+    to_zone_type_id: orm.Mapped[str] = orm.mapped_column(
+        sqlalchemy.ForeignKey(Zones.zone_type_id)
+    )
 
 
 class TripEndDataByCarAvailability(Base):
@@ -147,7 +131,7 @@ class TripEndDataByCarAvailability(Base):
     __tablename__ = "trip_end_data_by_car_availability"
     id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
     metadata_id: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(MetaData.id))
-    zone_id: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(GeoLookup.zone_id))
+    zone_id: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(Zones.id))
     zone_type_id: orm.Mapped[int]
     purpose: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(PurposeTypes.id))
     mode: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(ModeTypes.id))
@@ -164,7 +148,7 @@ class TripEndDataByDirection(Base):
     __tablename__ = "trip_end_data_by_direction"
     id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
     metadata_id: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(MetaData.id))
-    zone_id: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(GeoLookup.zone_id))
+    zone_id: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(Zones.id))
     zone_type_id: orm.Mapped[int]
     purpose: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(PurposeTypes.id))
     mode: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(ModeTypes.id))
@@ -180,7 +164,7 @@ class CarOwnership(Base):
     __tablename__ = "car_ownership"
     id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
     metadata_id: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(MetaData.id))
-    zone_id: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(GeoLookup.zone_id))
+    zone_id: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(Zones.id))
     zone_type_id: orm.Mapped[int]
     car_ownership_type: orm.Mapped[int] = orm.mapped_column(
         sqlalchemy.ForeignKey(CarOwnershipTypes.id)
@@ -195,7 +179,7 @@ class Planning(Base):
     __tablename__ = "planning"
     id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
     metadata_id: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(MetaData.id))
-    zone_id: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(GeoLookup.zone_id))
+    zone_id: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(Zones.id))
     zone_type_id: orm.Mapped[int]
     planning_data_type: orm.Mapped[int] = orm.mapped_column(
         sqlalchemy.ForeignKey(PlanningDataTypes.id)
@@ -204,78 +188,73 @@ class Planning(Base):
     value: orm.Mapped[float]
 
 
-DB_TO_ACCESS_TABLE_LOOKUP: dict[type[Base], str] = {
-    CarAvailabilityTypes: "tblLookUpCarAvailability",
-    CarOwnershipTypes: "tblLookUpCarOwnershipType",
-    ModeTypes: "tblLookUpTransport",
-    PurposeTypes: "tblLookUpTripPurpose",
-    TimePeriodTypes: "tblLookUpTimePeriod",
-    TripType: "tblLookUpTEType",
-    PlanningDataTypes: "tblLookUpPlanning83",
-    Region: "tblLookUpRegion",
-    Authority: "tblLookUpAuthority82",
-    County: "tblLookUpCounty83",
-    GeoLookup: "tblLookupGeo83",
-    Planning: "Planning",
-    Years: "tblLookUpYrs83",
+DB_TO_ACCESS_TABLE_LOOKUP: dict[str, str] = {
+    CarAvailabilityTypes.__tablename__: "tblLookUpCarAvailability",
+    CarOwnershipTypes.__tablename__: "tblLookUpCarOwnershipType",
+    ModeTypes.__tablename__: "tblLookUpTransport",
+    PurposeTypes.__tablename__: "tblLookUpTripPurpose",
+    TimePeriodTypes.__tablename__: "tblLookUpTimePeriod",
+    TripType.__tablename__: "tblLookUpTEType",
+    PlanningDataTypes.__tablename__: "tblLookUpPlanning83",
+    Planning.__tablename__: "Planning",
+    "region": "tblLookUpRegion",
+    "county": "tblLookUpCounty83",
+    "authority": "tblLookUpAuthority82",
+    "ntem_zoning": "tblLookupGeo83",
 }
 """Lookup between database tables and MS Access table names."""
 
-ACCESS_TO_DB_COLUMNS: dict[type[Base], dict[str, str]] = {
-    CarAvailabilityTypes: {
+ACCESS_TO_DB_COLUMNS: dict[str, dict[str, str]] = {
+    CarAvailabilityTypes.__tablename__: {
         "CarAvID": "id",
         "CarAvDesc": "name",
     },
-    CarOwnershipTypes: {
+    CarOwnershipTypes.__tablename__: {
         "CarOwnID": "id",
         "CarOwnDesc": "name",
     },
-    PurposeTypes: {
+    PurposeTypes.__tablename__: {
         "PurposeID": "id",
         "PurposeDesc": "name",
     },
-    ModeTypes: {
+    ModeTypes.__tablename__: {
         "TransportID": "id",
         "TransportDesc": "name",
     },
-    TimePeriodTypes: {
+    TimePeriodTypes.__tablename__: {
         "TimePeriodID": "id",
         "DivideBy": "divide_by",
         "TimePeriodDesc": "name",
     },
-    TripType: {
+    TripType.__tablename__: {
         "TEtypeID": "id",
         "TEtypeDesc": "name",
     },
-    Years: {
-        "YearID": "id",
-        "YrNo": "year",
-    },
-    PlanningDataTypes: {
+    PlanningDataTypes.__tablename__: {
         "PlanID": "id",
         "PlanDesc": "name",
     },
-    Region: {
-        "RegionID": "id",
+    "region": {
+        "RegionID": "ntem_zoning_id",
         "LongRegionName": "name",
-        "RegionName": "abbreviation",
+        "RegionName": "source_id_or_code",
     },
-    Authority: {
-        "AuthorityID": "id",
-        "AuthorityName": "name",
-        "ControlAreaID": "code",
-    },
-    County: {
-        "CountyID": "id",
+    "county": {
+        "CountyID": "ntem_zoning_id",
         "CountyName": "name",
     },
-    GeoLookup: {
-        "TemproZoneID": "zone_id",
-        "ZoneName": "zone_name",
+    "authority": {
+        "AuthorityID": "ntem_zoning_id",
+        "AuthorityName": "name",
+        "ControlAreaID": "source_id_or_code",
+    },
+    "ntem_zoning": {
+        "TemproZoneID": "ntem_zoning_id",
+        "ZoneName": "name",
         "RegionID": "region_id",
         "AuthorityID": "authority_id",
         "CountyID": "county_id",
-        "NTEM7ZoneCode": "zone_code",
+        "NTEM7ZoneCode": "source_id_or_code",
     },
 }
 """Lookup between MS Access columns and database columns."""
@@ -283,13 +262,10 @@ ACCESS_TO_DB_COLUMNS: dict[type[Base], dict[str, str]] = {
 LOOKUP_TABLES: list[type[Base]] = [
     CarAvailabilityTypes,
     CarOwnershipTypes,
+    ModeTypes,
     PurposeTypes,
     TimePeriodTypes,
     TripType,
     PlanningDataTypes,
-    Region,
-    Authority,
-    County,
-    GeoLookup,
 ]
 """List of lookup tables."""
