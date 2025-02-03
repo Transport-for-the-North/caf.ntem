@@ -50,6 +50,8 @@ class BuildArgs(ntem.ntem_constants.InputBase):
         description="Path to directory to output SQLite database file"
     )
     """Path to directory to output SQLite database file."""
+    scenarios: list[ntem.ntem_constants.Scenarios] | None = None
+    """Scenarios to port into the database"""
 
     def run(self):
         """Run the build functionality using the args defined."""
