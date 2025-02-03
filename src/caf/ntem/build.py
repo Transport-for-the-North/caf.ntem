@@ -20,6 +20,8 @@ from sqlalchemy import orm
 import caf.ntem as ntem
 
 _CLEAN_DATABASE = ctk.arguments.getenv_bool("NTEM_CLEAN_DATABASE", False)
+INVALID_ZONE_ID = 9999
+
 
 LOG = logging.getLogger(__name__)
 
@@ -209,6 +211,8 @@ def _process_ntem_access_file(
     data["metadata_id"] = metadata_id
     data["zone_type_id"] = 1
 
+    data = data[data["zone_id"] != INVALID_ZONE_ID]
+
     id_columns = ["metadata_id", "zone_type_id"] + id_columns
 
     data = data.rename(columns=rename_cols).melt(
@@ -222,7 +226,11 @@ def _process_ntem_access_file(
     data.to_sql(out_table.__tablename__, connection, if_exists="append", index=False)
 
 
-def build_db(dir: pathlib.Path, output_dir: pathlib.Path):
+def build_db(
+    dir: pathlib.Path,
+    output_dir: pathlib.Path,
+    scenarios: Iterable[ntem.ntem_constants.Scenarios] | None = None,
+):
     """Processes the NTEM data from the access files and outputs a SQLite database.
 
     Parameters
@@ -235,7 +243,7 @@ def build_db(dir: pathlib.Path, output_dir: pathlib.Path):
     output_path = output_dir / "Nice_NTEM.db"
 
     LOG.info("Retreiving and sorted file paths")
-    data_paths, lookup_path = _sort_files(dir.glob("*.mdb"))
+    data_paths, lookup_path = _sort_files(dir.glob("*.mdb"), scenarios)
 
     LOG.info("Created database tables")
     output_engine = sqlalchemy.create_engine(ntem.db_structure.connection_string(output_path))
@@ -417,11 +425,14 @@ def _process_geo_lookup_data(
 
 def _sort_files(
     files: Iterable[pathlib.Path],
+    run_scenarios: Iterable[ntem.ntem_constants.Scenarios] | None = None,
 ) -> tuple[dict[FileType, list[pathlib.Path]], pathlib.Path]:
     """Sorts the files based on the scenario."""
     sorted_files = collections.defaultdict(lambda: [])
+    if run_scenarios is None:
+        run_scenarios = ntem.ntem_constants.Scenarios.__members__.values()
     for file in files:
-        for scenario in ntem.ntem_constants.Scenarios.__members__.values():
+        for scenario in run_scenarios:
             if scenario.value in file.stem:
                 version_digits = re.search(r"_(\d)(\d)_", file.stem)
                 if version_digits is None:
