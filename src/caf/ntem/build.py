@@ -207,7 +207,7 @@ def _process_ntem_access_file(
         One to one map between column name in the table and the name to replace it.
     """
     LOG.debug("Reading access data")
-    data = access_to_df(path, access_table_name)
+    data = access_to_df(path, access_table_name).rename(columns=rename_cols)
     LOG.debug("Processing data")
     # Adjust so the column names match the database structure
     data["metadata_id"] = metadata_id
@@ -217,7 +217,7 @@ def _process_ntem_access_file(
 
     id_columns = ["metadata_id", "zone_type_id"] + id_columns
 
-    data = data.rename(columns=rename_cols).melt(
+    data = data.melt(
         id_columns,
         var_name="year",
         value_name="value",
