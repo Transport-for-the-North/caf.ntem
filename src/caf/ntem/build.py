@@ -55,7 +55,7 @@ class BuildArgs(ntem.ntem_constants.InputBase):
 
     def run(self):
         """Run the build functionality using the args defined."""
-        build_db(self.directory, self.output_path)
+        build_db(self.directory, self.output_path, self.scenarios)
 
 
 def access_to_df(
