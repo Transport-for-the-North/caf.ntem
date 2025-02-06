@@ -5,6 +5,7 @@ import collections
 import logging
 import pathlib
 import re
+import sqlite3
 from typing import Iterable, NamedTuple
 
 # Third Party
@@ -28,6 +29,15 @@ LOG = logging.getLogger(__name__)
 ACCESS_CONNCECTION_STRING = (
     "access+pyodbc:///?odbc_connect=DRIVER={{Microsoft Access Driver (*.mdb, *.accdb)}};DBQ={}"
 )
+
+
+@sqlalchemy.event.listens_for(sqlalchemy.Engine, "connect")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    """Set the foreign key pragma for SQLite."""
+    if isinstance(dbapi_connection, sqlite3.Connection):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
 
 
 class FileType(NamedTuple):
