@@ -18,7 +18,7 @@ import tqdm
 from sqlalchemy import orm
 
 # Local Imports
-import caf.ntem as ntem
+from caf.ntem import structure, ntem_constants
 
 _CLEAN_DATABASE = ctk.arguments.getenv_bool("NTEM_CLEAN_DATABASE", False)
 INVALID_ZONE_ID = 9999
@@ -43,13 +43,13 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
 class FileType(NamedTuple):
     """A named tuple for storing the scenario and version of a file."""
 
-    scenario: ntem.ntem_constants.Scenarios
+    scenario: ntem_constants.Scenarios
     """The scenario of the file."""
     version: str
     """The version of the file."""
 
 
-class BuildArgs(ntem.ntem_constants.InputBase):
+class BuildArgs(ntem_constants.InputBase):
     """Input areguments for the build command."""
 
     directory: pydantic.DirectoryPath = pydantic.Field(
@@ -60,7 +60,7 @@ class BuildArgs(ntem.ntem_constants.InputBase):
         description="Path to directory to output SQLite database file"
     )
     """Path to directory to output SQLite database file."""
-    scenarios: list[ntem.ntem_constants.Scenarios] | None = None
+    scenarios: list[ntem_constants.Scenarios] | None = None
     """Scenarios to port into the database"""
 
     def run(self):
@@ -130,9 +130,9 @@ def process_scenario(
         LOG.debug("Proccessing Planning Data")
         _process_ntem_access_file(
             connection,
-            ntem.db_structure.Planning,
+            structure.Planning,
             path,
-            ntem.ntem_constants.AccessTables.PLANNING.value,
+            ntem_constants.AccessTables.PLANNING.value,
             metadata_id,
             ["zone_id", "planning_data_type"],
             {"ZoneID": "zone_id", "PlanningDataType": "planning_data_type"},
@@ -142,9 +142,9 @@ def process_scenario(
         LOG.debug(msg="Proccessing Car Ownership Data")
         _process_ntem_access_file(
             connection,
-            ntem.db_structure.CarOwnership,
+            structure.CarOwnership,
             path,
-            ntem.ntem_constants.AccessTables.CAR_OWNERSHIP.value,
+            ntem_constants.AccessTables.CAR_OWNERSHIP.value,
             metadata_id,
             ["zone_id", "car_ownership_type"],
             {"ZoneID": "zone_id", "CarOwnershipType": "car_ownership_type"},
@@ -154,9 +154,9 @@ def process_scenario(
         LOG.debug("Proccessing TE Car Availability Data")
         _process_ntem_access_file(
             connection,
-            ntem.db_structure.TripEndDataByCarAvailability,
+            structure.TripEndDataByCarAvailability,
             path,
-            ntem.ntem_constants.AccessTables.TE_CAR_AVAILABILITY.value,
+            ntem_constants.AccessTables.TE_CAR_AVAILABILITY.value,
             metadata_id,
             ["zone_id", "purpose", "mode", "car_availability_type"],
             {
@@ -171,9 +171,9 @@ def process_scenario(
         LOG.debug("Proccessing TE Direction Data")
         _process_ntem_access_file(
             connection,
-            ntem.db_structure.TripEndDataByDirection,
+            structure.TripEndDataByDirection,
             path,
-            ntem.ntem_constants.AccessTables.TE_DIRECTION.value,
+            ntem_constants.AccessTables.TE_DIRECTION.value,
             metadata_id,
             ["zone_id", "purpose", "mode", "time_period", "trip_type"],
             {
@@ -189,7 +189,7 @@ def process_scenario(
 
 def _process_ntem_access_file(
     connection: sqlalchemy.Connection,
-    out_table: type[ntem.db_structure.Base],
+    out_table: type[structure.Base],
     path: pathlib.Path,
     access_table_name: str,
     metadata_id: int,
@@ -203,7 +203,7 @@ def _process_ntem_access_file(
     ----------
     connection : sqlalchemy.Connection
         The connection to the database to insert into.
-    out_table : type[ntem.db_structure.Base]
+    out_table : type[structure.Base]
         The table to insert the data into.
     path : pathlib.Path
         The path to the access file to unpack and insert into the database.
@@ -241,7 +241,7 @@ def _process_ntem_access_file(
 def build_db(
     dir: pathlib.Path,
     output_dir: pathlib.Path,
-    scenarios: Iterable[ntem.ntem_constants.Scenarios] | None = None,
+    scenarios: Iterable[ntem_constants.Scenarios] | None = None,
 ):
     """Processes the NTEM data from the access files and outputs a SQLite database.
 
@@ -258,12 +258,12 @@ def build_db(
     data_paths, lookup_path = _sort_files(dir.glob("*.mdb"), scenarios)
 
     LOG.info("Created database tables")
-    output_engine = sqlalchemy.create_engine(ntem.db_structure.connection_string(output_path))
+    output_engine = sqlalchemy.create_engine(structure.connection_string(output_path))
 
     if _CLEAN_DATABASE:
-        ntem.db_structure.Base.metadata.drop_all(output_engine)
+        structure.Base.metadata.drop_all(output_engine)
 
-    ntem.db_structure.Base.metadata.create_all(output_engine, checkfirst=False)
+    structure.Base.metadata.create_all(output_engine, checkfirst=False)
 
     with orm.Session(output_engine) as session:
 
@@ -275,18 +275,22 @@ def build_db(
 
         for label, paths in data_paths.items():
             LOG.info(f"Processing {label.scenario.value} - Version:{label.version}")
-            metadata = ntem.db_structure.MetaData(
+            metadata = structure.MetaData(
                 scenario=label.scenario.value, version=label.version, share_type_id=1
             )
             session.add(metadata)
             # We need to flush so we can access the metadata id below
             session.flush()
+            session.commit()
 
             LOG.info("Added metadata scenario and version to metadata table")
             process_scenario(
                 session.connection(), label, metadata.id, paths, ntem_to_db_conversion
             )
             session.commit()
+
+        convert_to_avg_period(session)
+        session.commit()
 
 
 def create_lookup_tables(connection: sqlalchemy.Connection, lookup_path: pathlib.Path):
@@ -300,14 +304,30 @@ def create_lookup_tables(connection: sqlalchemy.Connection, lookup_path: pathlib
         The path to the access file containing the lookup tables.
     """
 
-    for table in tqdm.tqdm(ntem.db_structure.LOOKUP_TABLES, desc="Creating Lookup Tables"):
+    for table in tqdm.tqdm(structure.LOOKUP_TABLES, desc="Creating Lookup Tables"):
 
-        lookup = access_to_df(
-            lookup_path,
-            ntem.db_structure.DB_TO_ACCESS_TABLE_LOOKUP[table.__tablename__],
-            ntem.db_structure.ACCESS_TO_DB_COLUMNS[table.__tablename__],
+        if structure.DB_TO_ACCESS_TABLE_LOOKUP[table.__tablename__] == "NtemTripTypeLookup":
+            lookup = structure.NtemTripTypeLookup().to_pandas()
+            lookup.to_sql(table.__tablename__, connection, if_exists="append", index=False)
+
+        else:
+            lookup = access_to_df(
+                lookup_path,
+                structure.DB_TO_ACCESS_TABLE_LOOKUP[table.__tablename__],
+                structure.ACCESS_TO_DB_COLUMNS[table.__tablename__],
+            )
+            lookup.to_sql(table.__tablename__, connection, if_exists="append", index=False)
+
+
+def convert_to_avg_period(session: orm.Session) -> None:
+    stmt = (
+        sqlalchemy.update(structure.TripEndDataByDirection)
+        .where(structure.TripEndDataByDirection.time_period == structure.TimePeriodTypes.id)
+        .values(
+            value=structure.TripEndDataByDirection.value / structure.TimePeriodTypes.divide_by
         )
-        lookup.to_sql(table.__tablename__, connection, if_exists="append", index=False)
+    )
+    session.execute(stmt)
 
 
 def create_geo_lookup_table(
@@ -332,18 +352,16 @@ def create_geo_lookup_table(
         lookup between NTEM zone ids and the IDs in the database
     """
     # add zone types so we can access IDs later
-    zone_type = ntem.db_structure.ZoneType(name="zone", source=source, version=version)
+    zone_type = structure.ZoneType(name="zone", source=source, version=version)
     session.add(zone_type)
 
-    authority_type = ntem.db_structure.ZoneType(
-        name="authority", source=source, version=version
-    )
+    authority_type = structure.ZoneType(name="authority", source=source, version=version)
     session.add(authority_type)
 
-    county_type = ntem.db_structure.ZoneType(name="county", source=source, version=version)
+    county_type = structure.ZoneType(name="county", source=source, version=version)
     session.add(county_type)
 
-    region_type = ntem.db_structure.ZoneType(name="region", source=source, version=version)
+    region_type = structure.ZoneType(name="region", source=source, version=version)
     session.add(region_type)
 
     session.flush()
@@ -361,8 +379,8 @@ def create_geo_lookup_table(
     # lookup data will be used to create the geolookup table
     lookup_data = access_to_df(
         lookup_path,
-        ntem.db_structure.DB_TO_ACCESS_TABLE_LOOKUP["ntem_zoning"],
-        ntem.db_structure.ACCESS_TO_DB_COLUMNS["ntem_zoning"],
+        structure.DB_TO_ACCESS_TABLE_LOOKUP["ntem_zoning"],
+        structure.ACCESS_TO_DB_COLUMNS["ntem_zoning"],
     )
     lookup_data["ntem_zoning_id"] = lookup_data["ntem_zoning_id"].replace(zones_id_lookup)
     lookup_data = lookup_data.rename(columns={"ntem_zoning_id": "from_zone_id"})
@@ -380,7 +398,7 @@ def create_geo_lookup_table(
         ]
 
         system_lookup.to_sql(
-            ntem.db_structure.GeoLookup.__tablename__,
+            structure.GeoLookup.__tablename__,
             session.connection(),
             if_exists="replace",
             index=False,
@@ -396,8 +414,8 @@ def _process_geo_lookup_data(
     # need to pass the session since we query data immediately after writing so we need to flush
     system_data = access_to_df(
         lookup_path,
-        ntem.db_structure.DB_TO_ACCESS_TABLE_LOOKUP[system],
-        ntem.db_structure.ACCESS_TO_DB_COLUMNS[system],
+        structure.DB_TO_ACCESS_TABLE_LOOKUP[system],
+        structure.ACCESS_TO_DB_COLUMNS[system],
     )
     system_data["zone_type_id"] = system_id
 
@@ -409,7 +427,7 @@ def _process_geo_lookup_data(
         join_col = "name"
 
     system_data[write_columns].to_sql(
-        ntem.db_structure.Zones.__tablename__,
+        structure.Zones.__tablename__,
         session.connection(),
         if_exists="append",
         index=False,
@@ -418,9 +436,7 @@ def _process_geo_lookup_data(
     session.flush()
 
     id_lookup = pd.read_sql(
-        sqlalchemy.select(ntem.db_structure.Zones).where(
-            ntem.db_structure.Zones.zone_type_id == system_id
-        ),
+        sqlalchemy.select(structure.Zones).where(structure.Zones.zone_type_id == system_id),
         session.connection(),
     )
     id_lookup = id_lookup.merge(
@@ -437,12 +453,12 @@ def _process_geo_lookup_data(
 
 def _sort_files(
     files: Iterable[pathlib.Path],
-    run_scenarios: Iterable[ntem.ntem_constants.Scenarios] | None = None,
+    run_scenarios: Iterable[ntem_constants.Scenarios] | None = None,
 ) -> tuple[dict[FileType, list[pathlib.Path]], pathlib.Path]:
     """Sorts the files based on the scenario."""
     sorted_files = collections.defaultdict(lambda: [])
     if run_scenarios is None:
-        run_scenarios = ntem.ntem_constants.Scenarios.__members__.values()
+        run_scenarios = ntem_constants.Scenarios.__members__.values()
     for file in files:
         for scenario in run_scenarios:
             if scenario.value in file.stem:

@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 # Built-Ins
+import dataclasses
 import pathlib
 
 # Third Party
+import pandas as pd
 import sqlalchemy as sqlalchemy
 from sqlalchemy import orm
 
@@ -188,13 +190,27 @@ class Planning(Base):
     value: orm.Mapped[float]
 
 
+@dataclasses.dataclass
+class NtemTripTypeLookup:
+    production_trip_end: int = 1
+    attraction_trip_end: int = 2
+    origin_trip_end: int = 3
+    destination_trip_end: int = 4
+
+    def to_pandas(self) -> pd.DataFrame:
+        return pd.DataFrame(
+            {int(value): str(key) for key, value in dataclasses.asdict(self).items()},
+            columns=["id", "name"],
+        )
+
+
 DB_TO_ACCESS_TABLE_LOOKUP: dict[str, str] = {
     CarAvailabilityTypes.__tablename__: "tblLookUpCarAvailability",
     CarOwnershipTypes.__tablename__: "tblLookUpCarOwnershipType",
     ModeTypes.__tablename__: "tblLookUpTransport",
     PurposeTypes.__tablename__: "tblLookUpTripPurpose",
     TimePeriodTypes.__tablename__: "tblLookUpTimePeriod",
-    TripType.__tablename__: "tblLookUpTEType",
+    TripType.__tablename__: "NtemTripTypeLookup",
     PlanningDataTypes.__tablename__: "tblLookUpPlanning83",
     Planning.__tablename__: "Planning",
     "region": "tblLookUpRegion",
