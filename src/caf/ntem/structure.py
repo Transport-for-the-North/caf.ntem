@@ -198,10 +198,13 @@ class NtemTripTypeLookup:
     destination_trip_end: int = 4
 
     def to_pandas(self) -> pd.DataFrame:
-        return pd.DataFrame(
+        lookup = pd.Series(
             {int(value): str(key) for key, value in dataclasses.asdict(self).items()},
-            columns=["id", "name"],
-        )
+            name="name",
+        ).to_frame()
+
+        lookup.index.name = "id"
+        return lookup.reset_index()
 
 
 DB_TO_ACCESS_TABLE_LOOKUP: dict[str, str] = {

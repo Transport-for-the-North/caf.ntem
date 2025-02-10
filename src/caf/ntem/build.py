@@ -289,8 +289,6 @@ def build_db(
             )
             session.commit()
 
-        convert_to_avg_period(session)
-        session.commit()
 
 
 def create_lookup_tables(connection: sqlalchemy.Connection, lookup_path: pathlib.Path):
