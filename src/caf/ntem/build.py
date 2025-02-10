@@ -290,7 +290,6 @@ def build_db(
             session.commit()
 
 
-
 def create_lookup_tables(connection: sqlalchemy.Connection, lookup_path: pathlib.Path):
     """Insert lookup tables into the database.
 
