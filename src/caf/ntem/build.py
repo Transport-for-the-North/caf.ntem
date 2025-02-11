@@ -18,7 +18,7 @@ import tqdm
 from sqlalchemy import orm
 
 # Local Imports
-from caf.ntem import structure, ntem_constants
+from caf.ntem import ntem_constants, structure
 
 _CLEAN_DATABASE = ctk.arguments.getenv_bool("NTEM_CLEAN_DATABASE", False)
 INVALID_ZONE_ID = 9999
@@ -58,7 +58,7 @@ class BuildArgs(ntem_constants.InputBase):
         description="Directory containing NTEM MS Access files."
     )
     """Directory containing NTEM MS Access files"""
-    
+
     scenarios: list[ntem_constants.Scenarios] | None = None
     """Scenarios to port into the database"""
 
@@ -67,7 +67,7 @@ class BuildArgs(ntem_constants.InputBase):
         build_db(self.directory, self.output_path, self.scenarios)
 
     @property
-    def logging_path(self)->pathlib.Path:
+    def logging_path(self) -> pathlib.Path:
         return self.output_path / "caf_ntem.log"
 
 

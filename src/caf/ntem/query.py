@@ -1,10 +1,14 @@
+# Built-Ins
 import pathlib
+
+# Third Party
 import pandas as pd
 import pydantic
 import sqlalchemy
 from sqlalchemy import orm
 
-from caf.ntem import structure, ntem_constants
+# Local Imports
+from caf.ntem import ntem_constants, structure
 
 
 class QueryArgs(ntem_constants.InputBase):
@@ -38,6 +42,7 @@ def _zone_subset(zone_names: list[str], zoning_id: int) -> sqlalchemy.Select:
             & (structure.Zones.zone_type_id == zoning_id)
         )
     )
+
 
 def perform_query(query_args: QueryArgs):
 

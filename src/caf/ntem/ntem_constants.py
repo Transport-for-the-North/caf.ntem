@@ -12,15 +12,13 @@ import pydantic
 class InputBase(ctk.BaseConfig, abc.ABC):
     """Base class for input parameters."""
 
-    
-
     @abc.abstractmethod
     def run(self):
         """Run the relavent function."""
 
     @property
     @abc.abstractmethod
-    def logging_path(self)->pathlib.Path:
+    def logging_path(self) -> pathlib.Path:
         """Logging path for the sub command."""
 
 

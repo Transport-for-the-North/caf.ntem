@@ -11,23 +11,24 @@ import pydantic
 
 # Local Imports
 import caf.ntem as ntem
-from caf.ntem import query, ntem_constants
-
+from caf.ntem import ntem_constants, query
 
 _TRACEBACK = ctk.arguments.getenv_bool("NTEM_TRACEBACK", False)
 _LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 
+
 def _config_parse(args: argparse.Namespace) -> ntem_constants.InputBase:
-        """Load parameters from config file.
+    """Load parameters from config file.
 
-        Parameters
-        ----------
-        args : argparse.Namespace
-            Parsed command-line arguments with a `config_path` attribute.
-        """
+    Parameters
+    ----------
+    args : argparse.Namespace
+        Parsed command-line arguments with a `config_path` attribute.
+    """
 
-        assert issubclass(args.model, ntem_constants.InputBase)
-        return args.model.load_yaml(args.config_path)
+    assert issubclass(args.model, ntem_constants.InputBase)
+    return args.model.load_yaml(args.config_path)
+
 
 def _create_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -71,7 +72,7 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         help="path to YAML config file containing run parameters",
     )
 
-    query_parser.set_defaults(dataclass_parse_func=_config_parse, model = query.QueryArgs)
+    query_parser.set_defaults(dataclass_parse_func=_config_parse, model=query.QueryArgs)
 
     return parser
 
@@ -96,7 +97,9 @@ def main():
         __package__,
         ntem.__version__,  # ntem.__homepage__, ntem.__source_url__
     )
-    with ctk.LogHelper(__package__, details, console=False, log_file=parameters.logging_path) as log:
+    with ctk.LogHelper(
+        __package__, details, console=False, log_file=parameters.logging_path
+    ) as log:
         if _LOG_LEVEL.lower() == "debug":
             log.add_console_handler(log_level=logging.DEBUG)
         elif _LOG_LEVEL.lower() == "info":
