@@ -397,7 +397,7 @@ def create_geo_lookup_table(
         system_lookup.to_sql(
             structure.GeoLookup.__tablename__,
             session.connection(),
-            if_exists="replace",
+            if_exists="append",
             index=False,
         )
 
