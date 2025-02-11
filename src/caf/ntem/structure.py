@@ -12,9 +12,9 @@ import sqlalchemy as sqlalchemy
 from sqlalchemy import orm
 
 
-def connection_string(output_path: pathlib.Path) -> str:
+def connection_string(path: pathlib.Path) -> str:
     """Creates a connection string to the database."""
-    return f"sqlite:///{output_path.resolve()}"
+    return f"sqlite:///{path.resolve()}"
 
 
 def schema_connection_string(output_path: pathlib.Path) -> str:

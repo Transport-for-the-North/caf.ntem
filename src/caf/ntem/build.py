@@ -52,20 +52,23 @@ class FileType(NamedTuple):
 class BuildArgs(ntem_constants.InputBase):
     """Input areguments for the build command."""
 
+    output_path: pathlib.Path = pydantic.Field(description="Path to the output directory.")
+    """Path to directory to output SQLite database file."""
     directory: pydantic.DirectoryPath = pydantic.Field(
         description="Directory containing NTEM MS Access files."
     )
     """Directory containing NTEM MS Access files"""
-    output_path: pydantic.DirectoryPath = pydantic.Field(
-        description="Path to directory to output SQLite database file"
-    )
-    """Path to directory to output SQLite database file."""
+    
     scenarios: list[ntem_constants.Scenarios] | None = None
     """Scenarios to port into the database"""
 
     def run(self):
         """Run the build functionality using the args defined."""
         build_db(self.directory, self.output_path, self.scenarios)
+
+    @property
+    def logging_path(self)->pathlib.Path:
+        return self.output_path / "caf_ntem.log"
 
 
 def access_to_df(

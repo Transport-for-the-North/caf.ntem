@@ -12,11 +12,16 @@ import pydantic
 class InputBase(ctk.BaseConfig, abc.ABC):
     """Base class for input parameters."""
 
-    output_path: pathlib.Path = pydantic.Field(description="Path to the output directory.")
+    
 
     @abc.abstractmethod
     def run(self):
         """Run the relavent function."""
+
+    @property
+    @abc.abstractmethod
+    def logging_path(self)->pathlib.Path:
+        """Logging path for the sub command."""
 
 
 class Scenarios(enum.Enum):

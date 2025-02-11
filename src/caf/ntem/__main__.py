@@ -2,6 +2,7 @@
 import argparse
 import logging
 import os
+import pathlib
 import sys
 
 # Third Party
@@ -10,10 +11,23 @@ import pydantic
 
 # Local Imports
 import caf.ntem as ntem
+from caf.ntem import query, ntem_constants
+
 
 _TRACEBACK = ctk.arguments.getenv_bool("NTEM_TRACEBACK", False)
 _LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
 
+def _config_parse(args: argparse.Namespace) -> ntem_constants.InputBase:
+        """Load parameters from config file.
+
+        Parameters
+        ----------
+        args : argparse.Namespace
+            Parsed command-line arguments with a `config_path` attribute.
+        """
+
+        assert issubclass(args.model, ntem_constants.InputBase)
+        return args.model.load_yaml(args.config_path)
 
 def _create_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -43,6 +57,22 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         "from specified NTEM MS Access files.",
         formatter_class=ctk.arguments.TidyUsageArgumentDefaultsHelpFormatter,
     )
+
+    query_parser = subparsers.add_parser(
+        "query",
+        help="Query the NTEM dataset",
+        description="Query the NTEM Database to get subset of data by region and year",
+        formatter_class=ctk.arguments.TidyUsageArgumentDefaultsHelpFormatter,
+    )
+
+    query_parser.add_argument(
+        "config_path",
+        type=pathlib.Path,
+        help="path to YAML config file containing run parameters",
+    )
+
+    query_parser.set_defaults(dataclass_parse_func=_config_parse, model = query.QueryArgs)
+
     return parser
 
 
@@ -62,12 +92,11 @@ def main():
     """Run the caf ntem module."""
     parameters = _parse_args()
 
-    log_file = parameters.output_path / "caf_ntem.log"
     details = ctk.ToolDetails(
         __package__,
         ntem.__version__,  # ntem.__homepage__, ntem.__source_url__
     )
-    with ctk.LogHelper(__package__, details, console=False, log_file=log_file) as log:
+    with ctk.LogHelper(__package__, details, console=False, log_file=parameters.logging_path) as log:
         if _LOG_LEVEL.lower() == "debug":
             log.add_console_handler(log_level=logging.DEBUG)
         elif _LOG_LEVEL.lower() == "info":
