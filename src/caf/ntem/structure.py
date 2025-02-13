@@ -207,6 +207,7 @@ class NtemTripTypeLookup:
         return lookup.reset_index()
 
 
+# -------------- build module definitions -------------
 DB_TO_ACCESS_TABLE_LOOKUP: dict[str, str] = {
     CarAvailabilityTypes.__tablename__: "tblLookUpCarAvailability",
     CarOwnershipTypes.__tablename__: "tblLookUpCarOwnershipType",
@@ -288,3 +289,5 @@ LOOKUP_TABLES: list[type[Base]] = [
     PlanningDataTypes,
 ]
 """List of lookup tables."""
+
+# -------------- query module definitions -------------
