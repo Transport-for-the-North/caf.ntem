@@ -11,7 +11,7 @@ import pydantic
 
 # Local Imports
 import caf.ntem as ntem
-from caf.ntem import ntem_constants, query
+from caf.ntem import inputs, ntem_constants, query
 
 _TRACEBACK = ctk.arguments.getenv_bool("NTEM_TRACEBACK", False)
 _LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
@@ -72,7 +72,7 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         help="path to YAML config file containing run parameters",
     )
 
-    query_parser.set_defaults(dataclass_parse_func=_config_parse, model=query.QueryArgs)
+    query_parser.set_defaults(dataclass_parse_func=_config_parse, model=inputs.QueryArgs)
 
     return parser
 

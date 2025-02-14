@@ -22,6 +22,30 @@ def schema_connection_string(output_path: pathlib.Path) -> str:
     return f"ATTACH DATABASE {output_path.resolve()} AS ntem"
 
 
+class DataBaseHandler:
+    def __init__(self, host: pathlib.Path):
+        self.engine = sqlalchemy.create_engine(connection_string(host))
+
+    def query_to_pandas(
+        self,
+        query: sqlalchemy.Selectable,
+        *,
+        column_names: list[str] | None = None,
+        index_columns: list[str] | None = None,
+    ) -> pd.DataFrame:
+
+        with sqlalchemy.Connection(self.engine) as connection:
+            data = pd.read_sql(query, connection)
+
+        if column_names is not None:
+            data.columns = column_names
+
+        if index_columns is not None:
+            data = data.set_index(index_columns)
+
+        return data
+
+
 class Base(orm.DeclarativeBase):
     """Base class for metadata tables."""
 

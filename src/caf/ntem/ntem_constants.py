@@ -56,6 +56,80 @@ class InputBase(ctk.BaseConfig, abc.ABC):
         """Logging path for the sub command."""
 
 
+class Purpose(enum.IntEnum):
+    HB_WORK = 1
+    HB_EB = 2
+    HB_EDUCATION = 3
+    HB_SHOPPING = 4
+    HB_PERSONAL = 5
+    HB_SOCIAL = 6
+    HB_VISITING = 7
+    HB_HOLIDAY = 8
+    NHB_WORK = 11
+    NHHB_EB = 12
+    NHB_EDUCATION = 13
+    NHB_SHOPPING = 14
+    NHB_PERSONAL = 15
+    NHB_SOCIAL = 16
+    NHB_HOLIDAY = 18
+
+
+class Mode(CaseInsensitiveEnum):
+    WALK = "walk"
+    CYCLE = "cycle"
+    CAR_DRIVER = "car_driver"
+    CAR_PASSENGER = "car_passenger"
+    BUS = "bus"
+    RAIL = "rail"
+
+    def id(self):
+        lookup = {
+            Mode.WALK: 1,
+            Mode.CYCLE: 2,
+            Mode.CAR_DRIVER: 3,
+            Mode.CAR_PASSENGER: 4,
+            Mode.BUS: 5,
+            Mode.RAIL: 6,
+        }
+        return lookup[self]
+
+
+class TimePeriod(CaseInsensitiveEnum):
+    AM = "am"
+    IP = "ip"
+    PM = "pm"
+    OP = "op"
+    SAT = "saturday"
+    SUN = "sunday"
+    AVG_WKDAY = "average_weekday"
+    AVG_DAY = "average_day"
+
+    def id(self) -> int:
+        lookup = {
+            TimePeriod.AM: 1,
+            TimePeriod.IP: 2,
+            TimePeriod.PM: 3,
+            TimePeriod.OP: 4,
+            TimePeriod.SAT: 5,
+            TimePeriod.SUN: 6,
+            TimePeriod.AVG_WKDAY: 7,
+            TimePeriod.AVG_DAY: 8,
+        }
+        return lookup[self]
+
+
+class TripType(CaseInsensitiveEnum):
+    PA = "pa"
+    OD = "od"
+
+    def id(self) -> list[int]:
+        lookup = {
+            TripType.PA: [1, 2],
+            TripType.OD: [3, 4],
+        }
+        return lookup[self]
+
+
 class ZoningSystems(CaseInsensitiveEnum):
     NTEM_ZONE = "ntem_zone"
     AUTHORITY = "authority"
