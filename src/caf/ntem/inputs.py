@@ -4,6 +4,7 @@ from __future__ import annotations
 import abc
 import dataclasses
 import pathlib
+from typing import Generator
 
 # Third Party
 import pydantic
@@ -20,6 +21,7 @@ class QueryArgs(ntem_constants.InputBase):
     label: str | None = None
     planning_runs: list[PlanningParams] | None = None
     trip_end_by_direction_runs: list[TripEndByDirectionRunParams] | None = None
+    car_ownership_runs: list[CarOwnershipParams] | None = None
 
     @property
     def logging_path(self) -> pathlib.Path:
@@ -28,18 +30,23 @@ class QueryArgs(ntem_constants.InputBase):
     def run(self) -> None:
         db_handler = structure.DataBaseHandler(self.db_path)
         self.output_path.mkdir(parents=True, exist_ok=True)
+
+        run_params: list[RunParams] = []
+
         if self.planning_runs is not None:
-            for run in self.planning_runs:
-                for query in run:
-                    query.query(db_handler).to_csv(
-                        (self.output_path / query.name).with_suffix(".csv")
-                    )
-        if self.trip_end_by_direction_runs is not None:
-            for run in self.trip_end_by_direction_runs:
-                for query in run:
-                    query.query(db_handler).to_csv(
-                        (self.output_path / query.name).with_suffix(".csv")
-                    )
+            run_params.extend(self.planning_runs)
+            
+        if self.trip_end_by_direction_runs is not None: 
+            run_params.extend(self.trip_end_by_direction_runs)
+
+        if self.car_ownership_runs is not None: 
+            run_params.extend(self.car_ownership_runs)
+
+        for run in run_params:
+            for query in run:
+                query.query(db_handler).to_csv(
+                    (self.output_path / query.name).with_suffix(".csv")
+                )
 
 
 @dataclasses.dataclass
@@ -58,6 +65,10 @@ class RunParams(abc.ABC):
     """Version to produce outputs for."""
     label: str | None = None
 
+    @abc.abstractmethod
+    def __iter__(self) -> Generator[query.QueryParams, None, None]:
+        pass
+
 
 @dataclasses.dataclass
 class PlanningParams(RunParams):
@@ -65,7 +76,7 @@ class PlanningParams(RunParams):
     employment: bool = True
     household: bool = True
 
-    def __iter__(self):
+    def __iter__(self) -> Generator[query.PlanningQuery, abc.Any, None]:
         for s in self.scenarios:
             for y in self.years:
                 yield query.PlanningQuery(
@@ -91,10 +102,10 @@ class TripEndByDirectionRunParams(RunParams):
     aggregate_mode: bool = True
     time_period_filter: list[ntem_constants.TimePeriod] | None = None
 
-    def __iter__(self):
+    def __iter__(self) -> Generator[query.TripEndByDirectionQuery, abc.Any, None]:
         for s in self.scenarios:
             for y in self.years:
-                yield query.TripEndByDirectionRunQuery(
+                yield query.TripEndByDirectionQuery(
                     y,
                     s,
                     self.filter_zoning_system,
@@ -108,4 +119,47 @@ class TripEndByDirectionRunParams(RunParams):
                     self.mode_filter,
                     self.aggregate_mode,
                     self.time_period_filter,
+                )
+
+@dataclasses.dataclass
+class TripEndByCarAvailbilityRunParams(RunParams):
+    purpose_filter: list[ntem_constants.Purpose] | None = None
+    aggregate_purpose: bool = True
+    mode_filter: list[ntem_constants.Mode] | None = None
+    aggregate_mode: bool = True
+
+    def __iter__(self) -> Generator[query.TripEndByDirectionQuery, abc.Any, None]:
+        for s in self.scenarios:
+            for y in self.years:
+                yield query.TripEndByDirectionQuery(
+                    y,
+                    s,
+                    self.filter_zoning_system,
+                    self.filter_zone_names,
+                    self.output_zoning,
+                    self.version,
+                    self.label,
+                    self.trip_type,
+                    self.purpose_filter,
+                    self.aggregate_purpose,
+                    self.mode_filter,
+                    self.aggregate_mode,
+                    self.time_period_filter,
+                )
+
+
+@dataclasses.dataclass
+class CarOwnershipParams(RunParams):
+
+    def __iter__(self):
+        for s in self.scenarios:
+            for y in self.years:
+                yield query.CarOwnershipQuery(
+                    y,
+                    s,
+                    self.filter_zoning_system,
+                    self.filter_zone_names,
+                    self.output_zoning,
+                    self.version,
+                    self.label,
                 )
