@@ -55,14 +55,14 @@ class RunParams(abc.ABC):
     """Years to produce outputs."""
     scenarios: list[ntem_constants.Scenarios]
     """Scenarios to produce outputs"""
-    filter_zoning_system: ntem_constants.ZoningSystems
-    """The zoning system to use when filtering data down"""
-    filter_zone_names: list[str]
-    """Zones to select from the data, must be in the names column of the zoning zones table."""
     output_zoning: ntem_constants.ZoningSystems = ntem_constants.ZoningSystems.NTEM_ZONE
     """Zoning system to output the data in."""
     version: ntem_constants.Versions = ntem_constants.Versions.EIGHT
     """Version to produce outputs for."""
+    filter_zoning_system: ntem_constants.ZoningSystems |None = None
+    """The zoning system to use when filtering data down"""
+    filter_zone_names: list[str] |None = None
+    """Zones to select from the data, must be in the names column of the zoning zones table."""
     label: str | None = None
 
     @abc.abstractmethod
@@ -80,16 +80,16 @@ class PlanningParams(RunParams):
         for s in self.scenarios:
             for y in self.years:
                 yield query.PlanningQuery(
-                    y,
-                    s,
-                    self.filter_zoning_system,
-                    self.filter_zone_names,
-                    self.output_zoning,
-                    self.version,
-                    self.label,
-                    self.residential,
-                    self.employment,
-                    self.household,
+                    year=y,
+                    scenario=s,
+                    version = self.version,
+                    filter_zoning_system=self.filter_zoning_system,
+                    filter_zone_names=self.filter_zone_names,
+                    output_zoning=self.output_zoning,
+                    label = self.label,
+                    residential=self.residential,
+                    employment=self.employment,
+                    household=self.household,
                 )
 
 
@@ -106,19 +106,19 @@ class TripEndByDirectionRunParams(RunParams):
         for s in self.scenarios:
             for y in self.years:
                 yield query.TripEndByDirectionQuery(
-                    y,
-                    s,
-                    self.filter_zoning_system,
-                    self.filter_zone_names,
-                    self.output_zoning,
-                    self.version,
-                    self.label,
-                    self.trip_type,
-                    self.purpose_filter,
-                    self.aggregate_purpose,
-                    self.mode_filter,
-                    self.aggregate_mode,
-                    self.time_period_filter,
+                    year=y,
+                    scenario=s,
+                    version=self.version, 
+                    label=self.label,
+                    filter_zoning_system=self.filter_zoning_system,
+                    filter_zone_names=self.filter_zone_names,
+                    output_zoning=self.output_zoning,
+                    trip_type=self.trip_type,
+                    purpose_filter=self.purpose_filter,
+                    aggregate_purpose=self.aggregate_purpose,
+                    mode_filter=self.mode_filter,
+                    aggregate_mode=self.aggregate_mode,
+                    time_period_filter=self.time_period_filter,
                 )
 
 @dataclasses.dataclass
@@ -128,23 +128,21 @@ class TripEndByCarAvailbilityRunParams(RunParams):
     mode_filter: list[ntem_constants.Mode] | None = None
     aggregate_mode: bool = True
 
-    def __iter__(self) -> Generator[query.TripEndByDirectionQuery, abc.Any, None]:
+    def __iter__(self) -> Generator[query.TripEndByCarAvailbilityQuery, abc.Any, None]:
         for s in self.scenarios:
             for y in self.years:
-                yield query.TripEndByDirectionQuery(
-                    y,
-                    s,
-                    self.filter_zoning_system,
-                    self.filter_zone_names,
-                    self.output_zoning,
-                    self.version,
-                    self.label,
-                    self.trip_type,
-                    self.purpose_filter,
-                    self.aggregate_purpose,
-                    self.mode_filter,
-                    self.aggregate_mode,
-                    self.time_period_filter,
+                yield query.TripEndByCarAvailbilityQuery(
+                    year=y,
+                    scenario=s,
+                    version=self.version,
+                    output_zoning =self.output_zoning,
+                    filter_zoning_system=self.filter_zoning_system,
+                    filter_zone_names=self.filter_zone_names,
+                    label =self.label,
+                    purpose_filter=self.purpose_filter,
+                    aggregate_purpose=self.aggregate_purpose,
+                    mode_filter=self.mode_filter,
+                    aggregate_mode =self.aggregate_mode,
                 )
 
 
@@ -155,11 +153,11 @@ class CarOwnershipParams(RunParams):
         for s in self.scenarios:
             for y in self.years:
                 yield query.CarOwnershipQuery(
-                    y,
-                    s,
-                    self.filter_zoning_system,
-                    self.filter_zone_names,
-                    self.output_zoning,
-                    self.version,
-                    self.label,
+                    year=y,
+                    scenario=s,
+                    version=self.version,
+                    filter_zoning_system=self.filter_zoning_system,
+                    filter_zone_names=self.filter_zone_names,
+                    output_zoning = self.output_zoning,
+                    label = self.label,
                 )
