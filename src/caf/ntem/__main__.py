@@ -12,7 +12,7 @@ import pydantic
 
 # Local Imports
 import caf.ntem as ntem
-from caf.ntem import inputs, ntem_constants, query
+from caf.ntem import inputs, ntem_constants, queries
 
 _TRACEBACK = ctk.arguments.getenv_bool("NTEM_TRACEBACK", False)
 _LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")

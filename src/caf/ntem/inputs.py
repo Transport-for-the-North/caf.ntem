@@ -12,7 +12,7 @@ import pydantic
 import tqdm
 
 # Local Imports
-from caf.ntem import ntem_constants, query, structure
+from caf.ntem import ntem_constants, queries, structure
 
 LOG = logging.getLogger(__name__)
 
@@ -70,7 +70,7 @@ class RunParams(abc.ABC):
     label: str | None = None
 
     @abc.abstractmethod
-    def __iter__(self) -> Generator[query.QueryParams, None, None]:
+    def __iter__(self) -> Generator[queries.QueryParams, None, None]:
         pass
 
 
@@ -80,10 +80,10 @@ class PlanningParams(RunParams):
     employment: bool = True
     household: bool = True
 
-    def __iter__(self) -> Generator[query.PlanningQuery, abc.Any, None]:
+    def __iter__(self) -> Generator[queries.PlanningQuery, abc.Any, None]:
         for s in self.scenarios:
             for y in self.years:
-                yield query.PlanningQuery(
+                yield queries.PlanningQuery(
                     year=y,
                     scenario=s,
                     version = self.version,
@@ -106,10 +106,10 @@ class TripEndByDirectionRunParams(RunParams):
     aggregate_mode: bool = True
     time_period_filter: list[ntem_constants.TimePeriod] | None = None
 
-    def __iter__(self) -> Generator[query.TripEndByDirectionQuery, abc.Any, None]:
+    def __iter__(self) -> Generator[queries.TripEndByDirectionQuery, abc.Any, None]:
         for s in self.scenarios:
             for y in self.years:
-                yield query.TripEndByDirectionQuery(
+                yield queries.TripEndByDirectionQuery(
                     year=y,
                     scenario=s,
                     version=self.version, 
@@ -132,10 +132,10 @@ class TripEndByCarAvailbilityRunParams(RunParams):
     mode_filter: list[ntem_constants.Mode] | None = None
     aggregate_mode: bool = True
 
-    def __iter__(self) -> Generator[query.TripEndByCarAvailbilityQuery, abc.Any, None]:
+    def __iter__(self) -> Generator[queries.TripEndByCarAvailbilityQuery, abc.Any, None]:
         for s in self.scenarios:
             for y in self.years:
-                yield query.TripEndByCarAvailbilityQuery(
+                yield queries.TripEndByCarAvailbilityQuery(
                     year=y,
                     scenario=s,
                     version=self.version,
@@ -156,7 +156,7 @@ class CarOwnershipParams(RunParams):
     def __iter__(self):
         for s in self.scenarios:
             for y in self.years:
-                yield query.CarOwnershipQuery(
+                yield queries.CarOwnershipQuery(
                     year=y,
                     scenario=s,
                     version=self.version,
