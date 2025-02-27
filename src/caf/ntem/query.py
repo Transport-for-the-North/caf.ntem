@@ -31,6 +31,8 @@ def _linear_interpolate(func: Callable[..., pd.DataFrame]) -> Callable[..., pd.D
                 **kwargs,
             )
 
+        LOG.debug("Interpolating between year %s from %s and %s", year, *interp_years)
+
         lower = func(
             *args,
             year=interp_years[0],
@@ -137,7 +139,8 @@ class PlanningQuery(QueryParams):
         db_handler: structure.DataBaseHandler,
         year: int,
     ) -> pd.DataFrame:
-        LOG.debug(f"Building query")
+        LOG.debug("Building query for year %s", year)
+
         data_filter = (
             (structure.Planning.year == year)
             & (structure.Planning.metadata_id == self._metadata_id)
@@ -153,19 +156,19 @@ class PlanningQuery(QueryParams):
         if self._output_zoning == ntem_constants.ZoningSystems.NTEM_ZONE.id:
 
             query = sqlalchemy.select(
-                structure.Zones.source_id_or_code,
-                structure.Zones.name,
-                structure.PlanningDataTypes.name,
-                structure.Planning.value,
+                structure.Zones.source_id_or_code.label("zone_code"),
+                structure.Zones.name.label("zone_name"),
+                structure.PlanningDataTypes.name.label("data_type"),
+                structure.Planning.value.label("value"),
             ).where(data_filter)
 
         else:
             query = (
                 sqlalchemy.select(
-                    structure.Zones.source_id_or_code,
-                    structure.Zones.name,
-                    structure.PlanningDataTypes.name,
-                    sqlalchemy.func.sum(structure.Planning.value),
+                    structure.Zones.source_id_or_code.label("zone_code"),
+                    structure.Zones.name.label("zone_name"),
+                    structure.PlanningDataTypes.name.label("data_type"),
+                    sqlalchemy.func.sum(structure.Planning.value).label("value"),
                 )
                 .where(
                     data_filter
@@ -183,7 +186,6 @@ class PlanningQuery(QueryParams):
         LOG.debug(f"Running query")
         data = db_handler.query_to_pandas(
             query,
-            column_names=["zone_code", "zone_name", "data_type", "value"],
         )
         LOG.debug(f"Query complete - post-processing data")
         if data["zone_code"].isna().any():
@@ -243,7 +245,8 @@ class CarOwnershipQuery(QueryParams):
         db_handler: structure.DataBaseHandler,
         year: int,
     ) -> pd.DataFrame:
-        LOG.debug(f"Building query")
+        LOG.debug("Building query for year %s", year)
+
         data_filter = (
             (structure.CarOwnership.year == year)
             & (structure.CarOwnership.metadata_id == self._metadata_id)
@@ -259,10 +262,10 @@ class CarOwnershipQuery(QueryParams):
         if self._output_zoning == ntem_constants.ZoningSystems.NTEM_ZONE.id:
 
             query = sqlalchemy.select(
-                structure.Zones.source_id_or_code,
-                structure.Zones.name,
-                structure.CarOwnershipTypes.name,
-                structure.CarOwnership.value,
+                structure.Zones.source_id_or_code.label("zone_code"),
+                structure.Zones.name.label("zone_name"),
+                structure.CarOwnershipTypes.name.label("car_ownership_type"),
+                structure.CarOwnership.value.label("value"),
             ).where(data_filter)
 
         else:
@@ -440,7 +443,7 @@ class TripEndByDirectionQuery(QueryParams):
         db_handler: structure.DataBaseHandler,
         year: int,
     ) -> pd.DataFrame:
-        LOG.debug(f"Building query")
+        LOG.debug("Building query for year %s", year)
         select_cols = [
             structure.TripEndDataByDirection.time_period,
             sqlalchemy.func.sum(
@@ -665,7 +668,8 @@ class TripEndByCarAvailbilityQuery(QueryParams):
         db_handler: structure.DataBaseHandler,
         year: int,
     ) -> pd.DataFrame:
-        LOG.debug(f"Building query")
+        LOG.debug("Building query for year %s", year)
+
         select_cols = [
             sqlalchemy.func.sum(structure.TripEndDataByCarAvailability.value).label("value"),
         ]
