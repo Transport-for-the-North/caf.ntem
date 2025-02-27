@@ -4,6 +4,7 @@ import logging
 import os
 import pathlib
 import sys
+import tqdm.contrib.logging as tqdm_log
 
 # Third Party
 import caf.toolkit as ctk
@@ -100,6 +101,7 @@ def main():
     with ctk.LogHelper(
         __package__, details, console=False, log_file=parameters.logging_path
     ) as log:
+        tqdm_log.logging_redirect_tqdm([log.logger, log._warning_logger])
         if _LOG_LEVEL.lower() == "debug":
             log.add_console_handler(log_level=logging.DEBUG)
         elif _LOG_LEVEL.lower() == "info":

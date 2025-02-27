@@ -3,15 +3,18 @@ from __future__ import annotations
 # Built-Ins
 import abc
 import dataclasses
+import logging
 import pathlib
 from typing import Generator
 
 # Third Party
 import pydantic
+import tqdm
 
 # Local Imports
 from caf.ntem import ntem_constants, query, structure
 
+LOG = logging.getLogger(__name__)
 
 class QueryArgs(ntem_constants.InputBase):
     output_path: pathlib.Path = pydantic.Field(description="Path to the output directory.")
@@ -43,7 +46,8 @@ class QueryArgs(ntem_constants.InputBase):
             run_params.extend(self.car_ownership_runs)
 
         for run in run_params:
-            for query in run:
+            for query in tqdm.tqdm(run, desc=f"Running {run.label}"):
+                LOG.info(f"Running query: {query.name}")
                 query.query(db_handler).to_csv(
                     (self.output_path / query.name).with_suffix(".csv")
                 )

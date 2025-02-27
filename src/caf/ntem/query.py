@@ -137,7 +137,7 @@ class PlanningQuery(QueryParams):
         db_handler: structure.DataBaseHandler,
         year: int,
     ) -> pd.DataFrame:
-
+        LOG.debug(f"Building query")
         data_filter = (
             (structure.Planning.year == year)
             & (structure.Planning.metadata_id == self._metadata_id)
@@ -146,7 +146,7 @@ class PlanningQuery(QueryParams):
         )
 
         if self._filter_zoning_system is not None and self._filter_zone_names is not None:
-            data_filter &= structure.CarOwnership.zone_id.in_(
+            data_filter &= structure.Planning.zone_id.in_(
                 _zone_subset(self._filter_zone_names, self._filter_zoning_system)
             )
 
@@ -180,11 +180,12 @@ class PlanningQuery(QueryParams):
                 .group_by(structure.Zones.id, structure.PlanningDataTypes.id)
             )
 
+        LOG.debug(f"Running query")
         data = db_handler.query_to_pandas(
             query,
             column_names=["zone_code", "zone_name", "data_type", "value"],
         )
-
+        LOG.debug(f"Query complete - post-processing data")
         if data["zone_code"].isna().any():
             data["zone"] = data["zone_name"]
         else:
@@ -242,7 +243,7 @@ class CarOwnershipQuery(QueryParams):
         db_handler: structure.DataBaseHandler,
         year: int,
     ) -> pd.DataFrame:
-
+        LOG.debug(f"Building query")
         data_filter = (
             (structure.CarOwnership.year == year)
             & (structure.CarOwnership.metadata_id == self._metadata_id)
@@ -284,11 +285,11 @@ class CarOwnershipQuery(QueryParams):
                 )
                 .group_by(structure.Zones.id, structure.CarOwnershipTypes.id)
             )
-
+        LOG.debug(f"Running query")
         data = db_handler.query_to_pandas(
             query,
         )
-
+        LOG.debug(f"Query complete - post-processing data")
         if data["zone_code"].isna().any():
             data["zone"] = data["zone_name"]
         else:
@@ -376,6 +377,8 @@ class TripEndByDirectionQuery(QueryParams):
     def apply_lookups(
         self, data: pd.DataFrame, db_handler: structure.DataBaseHandler, replace_ids: bool
     ) -> pd.DataFrame:
+        
+        LOG.debug(f"Applying lookups")
         data_values = data.copy()
 
         replacements: dict[str, dict[int, str]] = {}
@@ -437,7 +440,7 @@ class TripEndByDirectionQuery(QueryParams):
         db_handler: structure.DataBaseHandler,
         year: int,
     ) -> pd.DataFrame:
-
+        LOG.debug(f"Building query")
         select_cols = [
             structure.TripEndDataByDirection.time_period,
             sqlalchemy.func.sum(
@@ -530,11 +533,11 @@ class TripEndByDirectionQuery(QueryParams):
                 )
                 .group_by(*groupby_cols)
             )
-
+        LOG.debug(f"Running query")
         data = db_handler.query_to_pandas(
             query,
         )
-
+        LOG.debug(f"Query complete")
         return data
 
 
@@ -608,6 +611,7 @@ class TripEndByCarAvailbilityQuery(QueryParams):
     def apply_lookups(
         self, data: pd.DataFrame, db_handler: structure.DataBaseHandler, replace_ids: bool
     ) -> pd.DataFrame:
+        LOG.debug(f"Applying lookups")
         data_values = data.copy()
 
         replacements: dict[str, dict[int, str]] = {}
@@ -661,7 +665,7 @@ class TripEndByCarAvailbilityQuery(QueryParams):
         db_handler: structure.DataBaseHandler,
         year: int,
     ) -> pd.DataFrame:
-
+        LOG.debug(f"Building query")
         select_cols = [
             sqlalchemy.func.sum(structure.TripEndDataByCarAvailability.value).label("value"),
         ]
@@ -742,11 +746,11 @@ class TripEndByCarAvailbilityQuery(QueryParams):
                 )
                 .group_by(*groupby_cols)
             )
-
+        LOG.debug(f"Running query")
         data = db_handler.query_to_pandas(
             query,
         )
-
+        LOG.debug(f"Query complete")
         return data
 
 
