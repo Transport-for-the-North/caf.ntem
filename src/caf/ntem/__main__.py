@@ -4,11 +4,11 @@ import logging
 import os
 import pathlib
 import sys
-import tqdm.contrib.logging as tqdm_log
 
 # Third Party
 import caf.toolkit as ctk
 import pydantic
+import tqdm.contrib.logging as tqdm_log
 
 # Local Imports
 import caf.ntem as ntem

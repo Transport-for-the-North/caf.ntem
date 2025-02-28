@@ -16,6 +16,7 @@ from caf.ntem import ntem_constants, queries, structure
 
 LOG = logging.getLogger(__name__)
 
+
 class QueryArgs(ntem_constants.InputBase):
     output_path: pathlib.Path = pydantic.Field(description="Path to the output directory.")
     """Path to directory to output the processed NTEM data."""
@@ -38,11 +39,11 @@ class QueryArgs(ntem_constants.InputBase):
 
         if self.planning_runs is not None:
             run_params.extend(self.planning_runs)
-            
-        if self.trip_end_by_direction_runs is not None: 
+
+        if self.trip_end_by_direction_runs is not None:
             run_params.extend(self.trip_end_by_direction_runs)
 
-        if self.car_ownership_runs is not None: 
+        if self.car_ownership_runs is not None:
             run_params.extend(self.car_ownership_runs)
 
         for run in run_params:
@@ -63,9 +64,9 @@ class RunParams(abc.ABC):
     """Zoning system to output the data in."""
     version: ntem_constants.Versions = ntem_constants.Versions.EIGHT
     """Version to produce outputs for."""
-    filter_zoning_system: ntem_constants.ZoningSystems |None = None
+    filter_zoning_system: ntem_constants.ZoningSystems | None = None
     """The zoning system to use when filtering data down"""
-    filter_zone_names: list[str] |None = None
+    filter_zone_names: list[str] | None = None
     """Zones to select from the data, must be in the names column of the zoning zones table."""
     label: str | None = None
 
@@ -82,19 +83,18 @@ class PlanningParams(RunParams):
 
     def __iter__(self) -> Generator[queries.PlanningQuery, abc.Any, None]:
         for s in self.scenarios:
-            for y in self.years:
-                yield queries.PlanningQuery(
-                    year=y,
-                    scenario=s,
-                    version = self.version,
-                    filter_zoning_system=self.filter_zoning_system,
-                    filter_zone_names=self.filter_zone_names,
-                    output_zoning=self.output_zoning,
-                    label = self.label,
-                    residential=self.residential,
-                    employment=self.employment,
-                    household=self.household,
-                )
+            yield queries.PlanningQuery(
+                *self.years,
+                scenario=s,
+                version=self.version,
+                filter_zoning_system=self.filter_zoning_system,
+                filter_zone_names=self.filter_zone_names,
+                output_zoning=self.output_zoning,
+                label=self.label,
+                residential=self.residential,
+                employment=self.employment,
+                household=self.household,
+            )
 
 
 @dataclasses.dataclass
@@ -108,22 +108,22 @@ class TripEndByDirectionRunParams(RunParams):
 
     def __iter__(self) -> Generator[queries.TripEndByDirectionQuery, abc.Any, None]:
         for s in self.scenarios:
-            for y in self.years:
-                yield queries.TripEndByDirectionQuery(
-                    year=y,
-                    scenario=s,
-                    version=self.version, 
-                    label=self.label,
-                    filter_zoning_system=self.filter_zoning_system,
-                    filter_zone_names=self.filter_zone_names,
-                    output_zoning=self.output_zoning,
-                    trip_type=self.trip_type,
-                    purpose_filter=self.purpose_filter,
-                    aggregate_purpose=self.aggregate_purpose,
-                    mode_filter=self.mode_filter,
-                    aggregate_mode=self.aggregate_mode,
-                    time_period_filter=self.time_period_filter,
-                )
+            yield queries.TripEndByDirectionQuery(
+                *self.years,
+                scenario=s,
+                version=self.version,
+                label=self.label,
+                filter_zoning_system=self.filter_zoning_system,
+                filter_zone_names=self.filter_zone_names,
+                output_zoning=self.output_zoning,
+                trip_type=self.trip_type,
+                purpose_filter=self.purpose_filter,
+                aggregate_purpose=self.aggregate_purpose,
+                mode_filter=self.mode_filter,
+                aggregate_mode=self.aggregate_mode,
+                time_period_filter=self.time_period_filter,
+            )
+
 
 @dataclasses.dataclass
 class TripEndByCarAvailbilityRunParams(RunParams):
@@ -134,20 +134,19 @@ class TripEndByCarAvailbilityRunParams(RunParams):
 
     def __iter__(self) -> Generator[queries.TripEndByCarAvailbilityQuery, abc.Any, None]:
         for s in self.scenarios:
-            for y in self.years:
-                yield queries.TripEndByCarAvailbilityQuery(
-                    year=y,
-                    scenario=s,
-                    version=self.version,
-                    output_zoning =self.output_zoning,
-                    filter_zoning_system=self.filter_zoning_system,
-                    filter_zone_names=self.filter_zone_names,
-                    label =self.label,
-                    purpose_filter=self.purpose_filter,
-                    aggregate_purpose=self.aggregate_purpose,
-                    mode_filter=self.mode_filter,
-                    aggregate_mode =self.aggregate_mode,
-                )
+            yield queries.TripEndByCarAvailbilityQuery(
+                *self.years,
+                scenario=s,
+                version=self.version,
+                output_zoning=self.output_zoning,
+                filter_zoning_system=self.filter_zoning_system,
+                filter_zone_names=self.filter_zone_names,
+                label=self.label,
+                purpose_filter=self.purpose_filter,
+                aggregate_purpose=self.aggregate_purpose,
+                mode_filter=self.mode_filter,
+                aggregate_mode=self.aggregate_mode,
+            )
 
 
 @dataclasses.dataclass
@@ -155,13 +154,12 @@ class CarOwnershipParams(RunParams):
 
     def __iter__(self):
         for s in self.scenarios:
-            for y in self.years:
-                yield queries.CarOwnershipQuery(
-                    year=y,
-                    scenario=s,
-                    version=self.version,
-                    filter_zoning_system=self.filter_zoning_system,
-                    filter_zone_names=self.filter_zone_names,
-                    output_zoning = self.output_zoning,
-                    label = self.label,
-                )
+            yield queries.CarOwnershipQuery(
+                *self.years,
+                scenario=s,
+                version=self.version,
+                filter_zoning_system=self.filter_zoning_system,
+                filter_zone_names=self.filter_zone_names,
+                output_zoning=self.output_zoning,
+                label=self.label,
+            )
