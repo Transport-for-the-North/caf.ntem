@@ -31,7 +31,7 @@ def _linear_interpolate(func: Callable[..., pd.DataFrame]) -> Callable[..., pd.D
                 query_years.update(interp_years)
                 interpolations[y] = interp_years
             else:
-                LOG.debug("Interpolating quering year %s", y)
+                LOG.debug("Extracting year %s", y)
                 query_years.add(y)
                 interpolations[y] = None
 
@@ -89,6 +89,8 @@ def _linear_interpolate(func: Callable[..., pd.DataFrame]) -> Callable[..., pd.D
 
 
 class QueryParams(abc.ABC):
+    """Abstract base class for query classes."""
+
     def __init__(
         self,
         years: Iterable[int],
@@ -98,6 +100,23 @@ class QueryParams(abc.ABC):
         filter_zoning_system: ntem_constants.ZoningSystems | None = None,
         filter_zone_names: list[str] | None = None,
     ):
+        """Initilise QueryParams.
+
+        Parameters
+        ----------
+        years : Iterable[int]
+            Years to provide data / interpolate.
+        scenario : ntem_constants.Scenarios
+            Scenario to provide data.
+        output_zoning : ntem_constants.ZoningSystems, optional
+            Zoning system to output data in, NTEM zoning is default.
+        version : ntem_constants.Versions, optional
+            Version of NTEM data to use, version 8.0 by default
+        filter_zoning_system : ntem_constants.ZoningSystems | None, optional
+            Zoning system to filter by, if None no spatial filter is performed.
+        filter_zone_names : list[str] | None, optional
+            Zones to filter for, if None no spatial filter is performed.
+        """
 
         self._years: Iterable[int] = years
         self._scenario: int = int(scenario.id(version))
@@ -521,6 +540,7 @@ class TripEndByDirectionQuery(QueryParams):
     ) -> pd.DataFrame:
         LOG.debug("Building query for year %s", years)
         select_cols = [
+            structure.TripType.name.label("trip_type"),
             structure.TripEndDataByDirection.time_period,
             structure.TripEndDataByDirection.year,
             sqlalchemy.func.sum(
@@ -537,6 +557,7 @@ class TripEndByDirectionQuery(QueryParams):
         groupby_cols = [
             structure.TripEndDataByDirection.time_period,
             structure.TripEndDataByDirection.year,
+            structure.TripEndDataByDirection.trip_type,
         ]
 
         if not self._aggregate_purpose:
@@ -563,10 +584,17 @@ class TripEndByDirectionQuery(QueryParams):
             & (structure.TripEndDataByDirection.trip_type.in_(self._trip_type))
         )
 
-        query = sqlalchemy.select(*select_cols).join(
-            structure.TimePeriodTypes,
-            structure.TimePeriodTypes.id == structure.TripEndDataByDirection.time_period,
-            isouter=True,
+        query = (
+            sqlalchemy.select(*select_cols)
+            .join(
+                structure.TimePeriodTypes,
+                structure.TimePeriodTypes.id == structure.TripEndDataByDirection.time_period,
+                isouter=True,
+            )
+            .join(
+                structure.TripType,
+                structure.TripType.id == structure.TripEndDataByDirection.trip_type,
+            )
         )
 
         if self._filter_zoning_system is not None and self._filter_zone_names is not None:
@@ -625,11 +653,14 @@ class TripEndByDirectionQuery(QueryParams):
         LOG.debug(f"Running query")
         data = db_handler.query_to_pandas(
             query,
-            index_columns=index_cols,
         )
         LOG.debug(f"Query complete")
 
-        return data
+        return data.pivot(
+            index=index_cols,
+            columns="trip_type",
+            values="value",
+        )
 
 
 @dataclasses.dataclass
