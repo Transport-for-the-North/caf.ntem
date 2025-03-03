@@ -149,6 +149,7 @@ class QueryParams(abc.ABC):
 
 class PlanningQuery(QueryParams):
     """Query class for NTEM planning data."""
+
     def __init__(
         self,
         *years: int,
@@ -300,7 +301,7 @@ class PlanningQuery(QueryParams):
 class CarOwnershipQuery(QueryParams):
     """
 
-    
+
     Parameters
     ----------
     years : int
@@ -328,7 +329,6 @@ class CarOwnershipQuery(QueryParams):
         filter_zone_names: list[str] | None = None,
     ):
 
-       
         if label is None:
             self._name: str = f"Car_Ownership_{scenario.value}_{version.value}"
         else:
@@ -611,10 +611,22 @@ class TripEndByDirectionQuery(QueryParams):
             structure.TripType.name.label("trip_type"),
             structure.TripEndDataByDirection.time_period,
             structure.TripEndDataByDirection.year,
+        ]
+
+        if self._output_zoning == ntem_constants.ZoningSystems.NTEM_ZONE.id and not (
+            self._aggregate_mode or self._aggregate_purpose
+        ):
+            select_cols.append(
+                (
+                    structure.TripEndDataByDirection.value
+                    / structure.TimePeriodTypes.divide_by
+                ).label("value")
+            )
+
+        else:
             sqlalchemy.func.sum(
                 structure.TripEndDataByDirection.value / structure.TimePeriodTypes.divide_by
-            ).label("value"),
-        ]
+            ).label("value")
 
         index_cols = [
             "zone",
@@ -690,7 +702,10 @@ class TripEndByDirectionQuery(QueryParams):
             )
 
         if self._output_zoning == ntem_constants.ZoningSystems.NTEM_ZONE.id:
-            query = query.group_by(*groupby_cols)
+            query = query.where(base_filter)
+
+            if self._aggregate_mode or self._aggregate_purpose:
+                query = query.group_by(*groupby_cols)
 
         else:
             query = (
