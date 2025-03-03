@@ -69,7 +69,7 @@ def _linear_interpolate(func: Callable[..., pd.DataFrame]) -> Callable[..., pd.D
                             query_out.xs(interp_years[1], level="year")
                             - query_out.xs(interp_years[0], level="year")
                         )
-                        / (interp_years[0] - interp_years[1])
+                        / (interp_years[1] - interp_years[0])
                     ) * (y - interp_years[0]) + query_out.xs(interp_years[0], level="year")
                     interp["year"] = y
                     interp = interp.set_index("year", append=True)
@@ -148,7 +148,29 @@ class QueryParams(abc.ABC):
 
 
 class PlanningQuery(QueryParams):
-    """Query class for NTEM planning data."""
+    """Query class for NTEM planning data.
+    
+    Parameters
+    ----------
+    years : int
+        Years to provide data / interpolate.
+    scenario : ntem_constants.Scenarios
+        Scenario to provide data.
+    output_zoning : ntem_constants.ZoningSystems, optional
+        Zoning system to output data in, NTEM zoning is default.
+    version : ntem_constants.Versions, optional
+        Version of NTEM data to use, version 8.0 by default
+    filter_zoning_system : ntem_constants.ZoningSystems | None, optional
+        Zoning system to filter by, if None no spatial filter is performed.
+    filter_zone_names : list[str] | None, optional
+        Zones to filter for, if None no spatial filter is performed.
+    residential: bool, optional
+        Whether to include residential data in the output data set.
+    employment: bool, optional
+        Whether to include employment data in the output data set.
+    household: bool, optional
+        Whether to include household data in the output data set.
+    """
 
     def __init__(
         self,
@@ -163,29 +185,6 @@ class PlanningQuery(QueryParams):
         employment: bool = True,
         household: bool = True,
     ):
-        """Initilise PlanningQuery.
-
-        Parameters
-        ----------
-        years : int
-            Years to provide data / interpolate.
-        scenario : ntem_constants.Scenarios
-            Scenario to provide data.
-        output_zoning : ntem_constants.ZoningSystems, optional
-            Zoning system to output data in, NTEM zoning is default.
-        version : ntem_constants.Versions, optional
-            Version of NTEM data to use, version 8.0 by default
-        filter_zoning_system : ntem_constants.ZoningSystems | None, optional
-            Zoning system to filter by, if None no spatial filter is performed.
-        filter_zone_names : list[str] | None, optional
-            Zones to filter for, if None no spatial filter is performed.
-        residential: bool, optional
-            Whether to include residential data in the output data set.
-        employment: bool, optional
-            Whether to include employment data in the output data set.
-        household: bool, optional
-            Whether to include household data in the output data set.
-        """
 
         if label is None:
             self._name: str = f"Planning_{scenario.value}_{version.value}"
@@ -889,8 +888,16 @@ class TripEndByCarAvailbilityQuery(QueryParams):
 
         select_cols = [
             structure.TripEndDataByCarAvailability.year.label("year"),
-            sqlalchemy.func.sum(structure.TripEndDataByCarAvailability.value).label("value"),
         ]
+
+        if self._output_zoning == ntem_constants.ZoningSystems.NTEM_ZONE.id and not (
+            self._aggregate_mode or self._aggregate_purpose
+        ):
+            select_cols.append(structure.TripEndDataByCarAvailability.value.label("value"))
+
+        else:
+            select_cols.append(sqlalchemy.func.sum(structure.TripEndDataByCarAvailability.value).label("value"))
+
 
         groupby_cols = [structure.TripEndDataByCarAvailability.year]
 
