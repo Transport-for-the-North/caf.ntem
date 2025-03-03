@@ -81,7 +81,7 @@ class PlanningParams(RunParams):
     employment: bool = True
     household: bool = True
 
-    def __iter__(self) -> Generator[queries.PlanningQuery, abc.Any, None]:
+    def __iter__(self) -> Generator[queries.PlanningQuery, None, None]:
         for s in self.scenarios:
             yield queries.PlanningQuery(
                 *self.years,
@@ -106,7 +106,7 @@ class TripEndByDirectionRunParams(RunParams):
     aggregate_mode: bool = True
     time_period_filter: list[ntem_constants.TimePeriod] | None = None
 
-    def __iter__(self) -> Generator[queries.TripEndByDirectionQuery, abc.Any, None]:
+    def __iter__(self) -> Generator[queries.TripEndByDirectionQuery, None, None]:
         for s in self.scenarios:
             yield queries.TripEndByDirectionQuery(
                 *self.years,
@@ -132,7 +132,7 @@ class TripEndByCarAvailbilityRunParams(RunParams):
     mode_filter: list[ntem_constants.Mode] | None = None
     aggregate_mode: bool = True
 
-    def __iter__(self) -> Generator[queries.TripEndByCarAvailbilityQuery, abc.Any, None]:
+    def __iter__(self) -> Generator[queries.TripEndByCarAvailbilityQuery, None, None]:
         for s in self.scenarios:
             yield queries.TripEndByCarAvailbilityQuery(
                 *self.years,
@@ -152,7 +152,7 @@ class TripEndByCarAvailbilityRunParams(RunParams):
 @dataclasses.dataclass
 class CarOwnershipParams(RunParams):
 
-    def __iter__(self):
+    def __iter__(self) -> Generator[queries.CarOwnershipQuery, None, None]:
         for s in self.scenarios:
             yield queries.CarOwnershipQuery(
                 *self.years,

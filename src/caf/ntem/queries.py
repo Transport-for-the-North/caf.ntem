@@ -768,12 +768,14 @@ class TripEndByCarAvailbilityQuery(QueryParams):
 
         if not self._aggregate_purpose:
             index_cols.append("purpose")
-            select_cols.insert(0, structure.TripEndDataByCarAvailability.purpose)
+            select_cols.insert(
+                0, structure.TripEndDataByCarAvailability.purpose.label("purpose")
+            )
             groupby_cols.append(structure.TripEndDataByCarAvailability.purpose)
 
         if not self._aggregate_mode:
             index_cols.append("mode")
-            select_cols.insert(0, structure.TripEndDataByCarAvailability.mode)
+            select_cols.insert(0, structure.TripEndDataByCarAvailability.mode.label("mode"))
             groupby_cols.append(structure.TripEndDataByCarAvailability.mode)
 
         if self._output_zoning == ntem_constants.ZoningSystems.NTEM_ZONE.id:
@@ -788,7 +790,10 @@ class TripEndByCarAvailbilityQuery(QueryParams):
             structure.TripEndDataByCarAvailability.metadata_id == self._metadata_id
         )
 
-        query = sqlalchemy.select(*select_cols)
+        # TODO(kf) I can't figure out why MyPy has a problem here and not elsewhere.
+        # I also can't figure out a type hint that is consistent with the output of .label (Label) and
+        # InstrumentedAttribute
+        query = sqlalchemy.select(*select_cols)  # type: ignore[call-overload]
 
         if self._filter_zoning_system is not None and self._filter_zone_names is not None:
             base_filter &= structure.TripEndDataByCarAvailability.zone_id.in_(
