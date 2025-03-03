@@ -298,6 +298,24 @@ class PlanningQuery(QueryParams):
 
 
 class CarOwnershipQuery(QueryParams):
+    """
+
+    
+    Parameters
+    ----------
+    years : int
+        Years to provide data / interpolate.
+    scenario : ntem_constants.Scenarios
+        Scenario to provide data.
+    output_zoning : ntem_constants.ZoningSystems, optional
+        Zoning system to output data in, NTEM zoning is default.
+    version : ntem_constants.Versions, optional
+        Version of NTEM data to use, version 8.0 by default
+    filter_zoning_system : ntem_constants.ZoningSystems | None, optional
+        Zoning system to filter by, if None no spatial filter is performed.
+    filter_zone_names : list[str] | None, optional
+        Zones to filter for, if None no spatial filter is performed.
+    """
 
     def __init__(
         self,
@@ -309,23 +327,8 @@ class CarOwnershipQuery(QueryParams):
         filter_zoning_system: ntem_constants.ZoningSystems | None = None,
         filter_zone_names: list[str] | None = None,
     ):
-        """Initilise QueryParams.
 
-        Parameters
-        ----------
-        years : int
-            Years to provide data / interpolate.
-        scenario : ntem_constants.Scenarios
-            Scenario to provide data.
-        output_zoning : ntem_constants.ZoningSystems, optional
-            Zoning system to output data in, NTEM zoning is default.
-        version : ntem_constants.Versions, optional
-            Version of NTEM data to use, version 8.0 by default
-        filter_zoning_system : ntem_constants.ZoningSystems | None, optional
-            Zoning system to filter by, if None no spatial filter is performed.
-        filter_zone_names : list[str] | None, optional
-            Zones to filter for, if None no spatial filter is performed.
-        """
+       
         if label is None:
             self._name: str = f"Car_Ownership_{scenario.value}_{version.value}"
         else:
@@ -687,10 +690,7 @@ class TripEndByDirectionQuery(QueryParams):
             )
 
         if self._output_zoning == ntem_constants.ZoningSystems.NTEM_ZONE.id:
-            query = query.where(base_filter)
-
-            if self._aggregate_mode or self._aggregate_purpose:
-                query = query.group_by(*groupby_cols)
+            query = query.group_by(*groupby_cols)
 
         else:
             query = (
