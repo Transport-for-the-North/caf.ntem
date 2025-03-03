@@ -317,7 +317,7 @@ class CarOwnershipQuery(QueryParams):
                     (structure.Zones.id == structure.CarOwnership.zone_id)
                     & (structure.Zones.zone_type_id == structure.CarOwnership.zone_type_id),
                 )
-            )
+            ).where(data_filter)
 
         else:
             query = (
@@ -334,19 +334,30 @@ class CarOwnershipQuery(QueryParams):
                     == structure.CarOwnershipTypes.id,
                 )
                 .join(
+                    structure.GeoLookup,
+                    (
+                        (structure.GeoLookup.from_zone_id == structure.CarOwnership.zone_id)
+                        & (
+                            structure.GeoLookup.from_zone_type_id
+                            == structure.CarOwnership.zone_type_id
+                        )
+                    ),
+                    isouter=True,
+                )
+                .join(
                     structure.Zones,
-                    (structure.Zones.id == structure.CarOwnership.zone_id)
-                    & (structure.Zones.zone_type_id == structure.CarOwnership.zone_type_id),
+                    (structure.Zones.id == structure.GeoLookup.to_zone_id)
+                    & (structure.Zones.zone_type_id == structure.GeoLookup.to_zone_type_id),
+                    isouter=True,
                 )
                 .where(
                     data_filter
-                    & (structure.GeoLookup.from_zone_id == structure.CarOwnership.zone_id)
+                    & (structure.GeoLookup.to_zone_type_id == self._output_zoning)
                     & (
                         structure.GeoLookup.from_zone_type_id
                         == ntem_constants.ZoningSystems.NTEM_ZONE.id
                     )
                     & (structure.GeoLookup.to_zone_type_id == self._output_zoning)
-                    & (structure.Zones.id == structure.GeoLookup.to_zone_id)
                 )
                 .group_by(
                     structure.Zones.id,
