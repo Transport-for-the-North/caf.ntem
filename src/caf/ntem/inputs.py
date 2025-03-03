@@ -22,10 +22,14 @@ class QueryArgs(ntem_constants.InputBase):
     """Path to directory to output the processed NTEM data."""
     db_path: pydantic.FilePath = pydantic.Field(description="Path to NTEM database.")
     """Path to NTEM database, which has ben outputted by the build module."""
-    label: str | None = None
     planning_runs: list[PlanningParams] | None = None
+    """Define the planning queries."""
     trip_end_by_direction_runs: list[TripEndByDirectionRunParams] | None = None
+    """Define the trip end by direction queries."""
     car_ownership_runs: list[CarOwnershipParams] | None = None
+    """Define the car ownership queries."""
+    trip_end_by_car_availability_runs: list[TripEndByCarAvailabilityRunParams] | None = None
+    """Define the trip end by car availability queries."""
 
     @property
     def logging_path(self) -> pathlib.Path:
@@ -45,6 +49,9 @@ class QueryArgs(ntem_constants.InputBase):
 
         if self.car_ownership_runs is not None:
             run_params.extend(self.car_ownership_runs)
+
+        if self.trip_end_by_car_availability_runs is not None:
+            run_params.extend(self.trip_end_by_car_availability_runs)
 
         for run in run_params:
             for query in tqdm.tqdm(run, desc=f"Running {run.label}"):
@@ -126,15 +133,15 @@ class TripEndByDirectionRunParams(RunParams):
 
 
 @dataclasses.dataclass
-class TripEndByCarAvailbilityRunParams(RunParams):
+class TripEndByCarAvailabilityRunParams(RunParams):
     purpose_filter: list[ntem_constants.Purpose] | None = None
     aggregate_purpose: bool = True
     mode_filter: list[ntem_constants.Mode] | None = None
     aggregate_mode: bool = True
 
-    def __iter__(self) -> Generator[queries.TripEndByCarAvailbilityQuery, None, None]:
+    def __iter__(self) -> Generator[queries.TripEndByCarAvailabilityQuery, None, None]:
         for s in self.scenarios:
-            yield queries.TripEndByCarAvailbilityQuery(
+            yield queries.TripEndByCarAvailabilityQuery(
                 *self.years,
                 scenario=s,
                 version=self.version,

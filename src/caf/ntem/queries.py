@@ -149,7 +149,7 @@ class QueryParams(abc.ABC):
 
 class PlanningQuery(QueryParams):
     """Query class for NTEM planning data.
-    
+
     Parameters
     ----------
     years : int
@@ -298,8 +298,7 @@ class PlanningQuery(QueryParams):
 
 
 class CarOwnershipQuery(QueryParams):
-    """
-
+    """Defines CarOwnership queries on the NTEM database.
 
     Parameters
     ----------
@@ -456,6 +455,38 @@ class CarOwnershipQuery(QueryParams):
 
 
 class TripEndByDirectionQuery(QueryParams):
+    """Define and perform Trip End by Direction queries on the NTEM database.
+
+    Parameters
+    ----------
+    years : Iterable[int]
+        Years to provide data / interpolate.
+    scenario : ntem_constants.Scenarios
+        Scenario to provide data.
+    output_zoning : ntem_constants.ZoningSystems, optional
+        Zoning system to output data in, NTEM zoning is default.
+    version : ntem_constants.Versions, optional
+        Version of NTEM data to use, version 8.0 by default.
+    filter_zoning_system : ntem_constants.ZoningSystems | None, optional
+        Zoning system to filter by, if None no spatial filter is performed.
+    filter_zone_names : list[str] | None, optional
+        Zones to filter for, if None no spatial filter is performed.
+    trip_type: ntem_constants.TripType, optional
+        The trip type to retreive.
+    purpose_filter: list[ntem_constants.Purpose] | None, optional
+        The purposes to filter the data by if None, no filter is performed.
+    aggregate_purpose: bool
+        Whether to aggregate purpose when retrieving data.
+    mode_filter: list[ntem_constants.Mode] | None = None,
+        The modes to filter the data by if None, no filter is performed.
+    aggregate_mode: bool = True,
+        Whether to aggreagte mode when retrieving data.
+    time_period_filter: list[ntem_constants.TimePeriod] | None = None,
+        The time periods to filter the data by if None, no filter is performed.
+    output_names: bool = True,
+        Whether to convert the segmentation IDs to names after outputting.
+    """
+
     def __init__(
         self,
         *year: int,
@@ -473,23 +504,6 @@ class TripEndByDirectionQuery(QueryParams):
         time_period_filter: list[ntem_constants.TimePeriod] | None = None,
         output_names: bool = True,
     ):
-        """Initilise QueryParams.
-
-        Parameters
-        ----------
-        years : Iterable[int]
-            Years to provide data / interpolate.
-        scenario : ntem_constants.Scenarios
-            Scenario to provide data.
-        output_zoning : ntem_constants.ZoningSystems, optional
-            Zoning system to output data in, NTEM zoning is default.
-        version : ntem_constants.Versions, optional
-            Version of NTEM data to use, version 8.0 by default
-        filter_zoning_system : ntem_constants.ZoningSystems | None, optional
-            Zoning system to filter by, if None no spatial filter is performed.
-        filter_zone_names : list[str] | None, optional
-            Zones to filter for, if None no spatial filter is performed.
-        """
 
         if label is None:
             self._name: str = f"trip_ends_{trip_type.value}"
@@ -742,12 +756,38 @@ class TripEndByDirectionQuery(QueryParams):
         )
 
 
-@dataclasses.dataclass
-class TripEndByCarAvailbilityQuery(QueryParams):
-    purpose_filter: list[ntem_constants.Purpose] | None = None
-    aggregate_purpose: bool = True
-    mode_filter: list[ntem_constants.Mode] | None = None
-    aggregate_mode: bool = True
+class TripEndByCarAvailabilityQuery(QueryParams):
+    """Define and perform Trip End by Direction queries on the NTEM database.
+
+    Parameters
+    ----------
+    years : Iterable[int]
+        Years to provide data / interpolate.
+    scenario : ntem_constants.Scenarios
+        Scenario to provide data.
+    output_zoning : ntem_constants.ZoningSystems, optional
+        Zoning system to output data in, NTEM zoning is default.
+    version : ntem_constants.Versions, optional
+        Version of NTEM data to use, version 8.0 by default.
+    filter_zoning_system : ntem_constants.ZoningSystems | None, optional
+        Zoning system to filter by, if None no spatial filter is performed.
+    filter_zone_names : list[str] | None, optional
+        Zones to filter for, if None no spatial filter is performed.
+    trip_type: ntem_constants.TripType, optional
+        The trip type to retreive.
+    purpose_filter: list[ntem_constants.Purpose] | None, optional
+        The purposes to filter the data by if None, no filter is performed.
+    aggregate_purpose: bool
+        Whether to aggregate purpose when retrieving data.
+    mode_filter: list[ntem_constants.Mode] | None = None,
+        The modes to filter the data by if None, no filter is performed.
+    aggregate_mode: bool = True,
+        Whether to aggreagte mode when retrieving data.
+    time_period_filter: list[ntem_constants.TimePeriod] | None = None,
+        The time periods to filter the data by if None, no filter is performed.
+    output_names: bool = True,
+        Whether to convert the segmentation IDs to names after outputting.
+    """
 
     def __init__(
         self,
@@ -764,29 +804,12 @@ class TripEndByCarAvailbilityQuery(QueryParams):
         aggregate_mode: bool = True,
         output_names: bool = True,
     ):
-        """Initilise QueryParams.
-
-        Parameters
-        ----------
-        years : Iterable[int]
-            Years to provide data / interpolate.
-        scenario : ntem_constants.Scenarios
-            Scenario to provide data.
-        output_zoning : ntem_constants.ZoningSystems, optional
-            Zoning system to output data in, NTEM zoning is default.
-        version : ntem_constants.Versions, optional
-            Version of NTEM data to use, version 8.0 by default
-        filter_zoning_system : ntem_constants.ZoningSystems | None, optional
-            Zoning system to filter by, if None no spatial filter is performed.
-        filter_zone_names : list[str] | None, optional
-            Zones to filter for, if None no spatial filter is performed.
-        """
 
         if label is None:
-            self._name: str = f"trip_ends_{years}"
+            self._name: str = f"trip_ends_by_car_availabi_lity_{years}"
             f"_{scenario.value}_{version.value}"
         else:
-            self._name = f"trip_ends_{label}"
+            self._name = f"trip_ends_by_car_availability{label}"
             f"_{years}_{scenario.value}_{version.value}"
 
         super().__init__(
@@ -871,7 +894,7 @@ class TripEndByCarAvailbilityQuery(QueryParams):
                 )["name"].to_dict()
 
         for col, lookup in replacements.items():
-            data_values[col] = data_values[col].replace(lookup)
+            data_values = data_values.rename(index=lookup, level=col)
 
         return data_values
 
@@ -886,7 +909,7 @@ class TripEndByCarAvailbilityQuery(QueryParams):
 
         index_cols: list[str] = ["zone", "year"]
 
-        select_cols = [
+        select_cols: list[sqlalchemy.Label] = [
             structure.TripEndDataByCarAvailability.year.label("year"),
         ]
 
@@ -896,8 +919,11 @@ class TripEndByCarAvailbilityQuery(QueryParams):
             select_cols.append(structure.TripEndDataByCarAvailability.value.label("value"))
 
         else:
-            select_cols.append(sqlalchemy.func.sum(structure.TripEndDataByCarAvailability.value).label("value"))
-
+            select_cols.append(
+                sqlalchemy.func.sum(structure.TripEndDataByCarAvailability.value).label(
+                    "value"
+                )
+            )
 
         groupby_cols = [structure.TripEndDataByCarAvailability.year]
 
@@ -925,10 +951,7 @@ class TripEndByCarAvailbilityQuery(QueryParams):
             structure.TripEndDataByCarAvailability.metadata_id == self._metadata_id
         )
 
-        # TODO(kf) I can't figure out why MyPy has a problem here and not elsewhere.
-        # I also can't figure out a type hint that is consistent with the output of .label (Label) and
-        # InstrumentedAttribute
-        query = sqlalchemy.select(*select_cols)  # type: ignore[call-overload]
+        query = sqlalchemy.select(*select_cols)
 
         if self._filter_zoning_system is not None and self._filter_zone_names is not None:
             base_filter &= structure.TripEndDataByCarAvailability.zone_id.in_(
@@ -981,9 +1004,7 @@ class TripEndByCarAvailbilityQuery(QueryParams):
                 .group_by(*groupby_cols)
             )
         LOG.debug(f"Running query")
-        data = db_handler.query_to_pandas(
-            query,
-        )
+        data = db_handler.query_to_pandas(query, index_columns=index_cols)
         LOG.debug(f"Query complete")
         return data
 
