@@ -2,11 +2,11 @@ from __future__ import annotations
 
 # Built-Ins
 import abc
-import dataclasses
 import logging
 from typing import Callable, Iterable
 
 # Third Party
+import caf.base as base
 import pandas as pd
 import sqlalchemy
 
@@ -552,6 +552,71 @@ class TripEndByDirectionQuery(QueryParams):
         data = self.apply_lookups(data, db_handler, self._replace_names)
 
         return data
+
+    def query_to_dvec(
+        self, db_handler: structure.DataBaseHandler
+    ) -> dict[int, dict[str, base.DVector]]:
+
+        data = self._data_query(
+            db_handler=db_handler,
+            years=self._years,
+        )
+
+        data = self.apply_lookups(data, db_handler, False)
+
+        data.index = data.index.rename({"time_period": "tp", "purpose": "p", "mode": "m"})
+
+        seg_names, subsets = self._segmentation
+
+        # data = data.reorder_levels(seg_names)
+
+        segmentation = base.Segmentation(
+            base.SegmentationInput(
+                enum_segments=[base.segments.SegmentsSuper(e) for e in seg_names],
+                naming_order=seg_names,
+                subsets=subsets,
+            )
+        )
+
+        if self._output_zoning == ntem_constants.ZoningSystems.NTEM_ZONE.id:
+            zoning = base.ZoningSystem.get_zoning("ntem")
+        else:
+            raise NotImplementedError("implement this your self")
+
+        outputs = {}
+
+        for year in self._years:
+            year_output = {}
+            for col in data.columns:
+                year_output[col] = base.DVector(
+                    import_data=data.xs(year, level="year")[col].unstack(level="zone"),
+                    segmentation=segmentation,
+                    zoning_system=zoning,
+                )
+            outputs[year] = year_output
+
+        return outputs
+
+    @property
+    def _segmentation(self) -> tuple[list[str], dict[str, list[int]]]:
+
+        seg = ["tp"]
+        seg_subset = {}
+
+        if self._time_period_filter is not None:
+            seg_subset["tp"] = self._time_period_filter
+
+        if not self._aggregate_purpose:
+            seg.insert(0, "p")
+            if self._purpose_filter is not None:
+                seg_subset["p"] = self._purpose_filter
+
+        if not self._aggregate_mode:
+            seg.insert(0, "m")
+            if self._mode_filter is not None:
+                seg_subset["m"] = self._mode_filter
+
+        return seg, seg_subset
 
     def apply_lookups(
         self, data: pd.DataFrame, db_handler: structure.DataBaseHandler, replace_ids: bool
