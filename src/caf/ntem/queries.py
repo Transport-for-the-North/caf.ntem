@@ -549,26 +549,36 @@ class TripEndByDirectionQuery(QueryParams):
             years=self._years,
         )
 
-        data = self.apply_lookups(data, db_handler, self._replace_names)
+        data = self._apply_lookups(data, db_handler, self._replace_names)
 
         return data
 
     def query_to_dvec(
         self, db_handler: structure.DataBaseHandler
     ) -> dict[int, dict[str, base.DVector]]:
+        """Produce Dvectors containing trip end by direction data.
+
+        Parameters
+        ----------
+        db_handler : structure.DataBaseHandler
+            data base handler object for the NTEM database
+
+        Returns
+        -------
+        dict[int, dict[str, base.DVector]]:
+            Trip end by direction data formatted as dict[year, dict[trip_type, data]].
+        """   
 
         data = self._data_query(
             db_handler=db_handler,
             years=self._years,
         )
 
-        data = self.apply_lookups(data, db_handler, False)
+        data = self._apply_lookups(data, db_handler, False)
 
         data.index = data.index.rename({"time_period": "tp", "purpose": "p", "mode": "m"})
 
         seg_names, subsets = self._segmentation
-
-        # data = data.reorder_levels(seg_names)
 
         segmentation = base.Segmentation(
             base.SegmentationInput(
@@ -624,7 +634,7 @@ class TripEndByDirectionQuery(QueryParams):
 
         return seg, seg_subset
 
-    def apply_lookups(
+    def _apply_lookups(
         self, data: pd.DataFrame, db_handler: structure.DataBaseHandler, replace_ids: bool
     ) -> pd.DataFrame:
 
@@ -915,11 +925,11 @@ class TripEndByCarAvailabilityQuery(QueryParams):
             years=self._years,
         )
 
-        data = self.apply_lookups(data, db_handler, self._replace_names)
+        data = self._apply_lookups(data, db_handler, self._replace_names)
 
         return data
 
-    def apply_lookups(
+    def _apply_lookups(
         self, data: pd.DataFrame, db_handler: structure.DataBaseHandler, replace_ids: bool
     ) -> pd.DataFrame:
         LOG.debug(f"Applying lookups")
