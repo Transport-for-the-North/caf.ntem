@@ -580,8 +580,14 @@ class TripEndByDirectionQuery(QueryParams):
 
         if self._output_zoning == ntem_constants.ZoningSystems.NTEM_ZONE.id:
             zoning = base.ZoningSystem.get_zoning("ntem")
+        elif self._output_zoning == ntem_constants.ZoningSystems.REGION.id:
+            zoning = base.ZoningSystem.get_zoning("region_ntem")
+        elif self._output_zoning == ntem_constants.ZoningSystems.AUTHORITY.id:
+            zoning = base.ZoningSystem.get_zoning("ntem_authority")
         else:
-            raise NotImplementedError("implement this your self")
+            raise NotImplementedError(
+                "Query to dvec does not support the output zoning system selected."
+            )
 
         outputs = {}
 
@@ -940,6 +946,14 @@ class TripEndByCarAvailabilityQuery(QueryParams):
 
         if replace_ids:
 
+            replacements["car_availability_type"] = zones_lookup = db_handler.query_to_pandas(
+                sqlalchemy.select(
+                    structure.CarAvailabilityTypes.id.label("id"),
+                    structure.CarAvailabilityTypes.name.label("name"),
+                ),
+                index_columns=["id"],
+            )["name"].to_dict()
+
             if not self._aggregate_purpose:
                 replacements["purpose"] = db_handler.query_to_pandas(
                     sqlalchemy.select(
@@ -972,9 +986,12 @@ class TripEndByCarAvailabilityQuery(QueryParams):
     ) -> pd.DataFrame:
         LOG.debug("Building query for year %s", years)
 
-        index_cols: list[str] = ["zone", "year"]
+        index_cols: list[str] = ["zone", "car_availability_type", "year"]
 
         select_cols: list[sqlalchemy.Label] = [
+            structure.TripEndDataByCarAvailability.car_availability_type.label(
+                "car_availability_type"
+            ),
             structure.TripEndDataByCarAvailability.year.label("year"),
         ]
 
@@ -990,7 +1007,10 @@ class TripEndByCarAvailabilityQuery(QueryParams):
                 )
             )
 
-        groupby_cols = [structure.TripEndDataByCarAvailability.year]
+        groupby_cols = [
+            structure.TripEndDataByCarAvailability.car_availability_type,
+            structure.TripEndDataByCarAvailability.year,
+        ]
 
         if not self._aggregate_purpose:
             index_cols.append("purpose")
