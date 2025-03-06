@@ -33,9 +33,11 @@ class QueryArgs(ntem_constants.InputBase):
 
     @property
     def logging_path(self) -> pathlib.Path:
+        """Return the logging path for the module"""
         return self.output_path / "caf_ntem.log"
 
     def run(self) -> None:
+        """Run the query process."""
         db_handler = structure.DataBaseHandler(self.db_path)
         self.output_path.mkdir(parents=True, exist_ok=True)
 
@@ -84,9 +86,14 @@ class RunParams(abc.ABC):
 
 @dataclasses.dataclass
 class PlanningParams(RunParams):
+    """Planning query parameters."""
+
     residential: bool = True
+    """Whether to include residential data in the output."""
     employment: bool = True
+    """Whether to include employment data in the output."""
     household: bool = True
+    """Whether to include household data in the output."""
 
     def __iter__(self) -> Generator[queries.PlanningQuery, None, None]:
         for s in self.scenarios:
@@ -106,12 +113,20 @@ class PlanningParams(RunParams):
 
 @dataclasses.dataclass
 class TripEndByDirectionRunParams(RunParams):
+    """Trip End by Direction query parameters."""
+
     trip_type: ntem_constants.TripType = ntem_constants.TripType.OD
+    """Trip types to retrieve."""
     purpose_filter: list[ntem_constants.Purpose] | None = None
+    """Purposes to retrieve, if None all are retrieved."""
     aggregate_purpose: bool = True
+    """"Whether to aggregate purposes."""
     mode_filter: list[ntem_constants.Mode] | None = None
+    """Modes to retrieve, if None all are retrieved."""
     aggregate_mode: bool = True
+    """Whether to aggregate modes."""
     time_period_filter: list[ntem_constants.TimePeriod] | None = None
+    """Time periods to retrieve, if None all are given"""
 
     def __iter__(self) -> Generator[queries.TripEndByDirectionQuery, None, None]:
         for s in self.scenarios:
@@ -134,10 +149,16 @@ class TripEndByDirectionRunParams(RunParams):
 
 @dataclasses.dataclass
 class TripEndByCarAvailabilityRunParams(RunParams):
+    """Trip end by car availability query params."""
+
     purpose_filter: list[ntem_constants.Purpose] | None = None
+    """Purposes to retrieve, if None all are retrieved."""
     aggregate_purpose: bool = True
+    """"Whether to aggregate purposes."""
     mode_filter: list[ntem_constants.Mode] | None = None
+    """Modes to retrieve, if None all are retrieved."""
     aggregate_mode: bool = True
+    """Whether to aggregate modes."""
 
     def __iter__(self) -> Generator[queries.TripEndByCarAvailabilityQuery, None, None]:
         for s in self.scenarios:
@@ -158,6 +179,7 @@ class TripEndByCarAvailabilityRunParams(RunParams):
 
 @dataclasses.dataclass
 class CarOwnershipParams(RunParams):
+    """Car ownership query params."""
 
     def __iter__(self) -> Generator[queries.CarOwnershipQuery, None, None]:
         for s in self.scenarios:

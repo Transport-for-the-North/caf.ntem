@@ -82,7 +82,8 @@ class Mode(CaseInsensitiveEnum):
     BUS = "bus"
     RAIL = "rail"
 
-    def id(self):
+    def id(self) -> int:
+        """Database ID of the mode."""
         lookup = {
             Mode.WALK: 1,
             Mode.CYCLE: 2,
@@ -105,6 +106,7 @@ class TimePeriod(CaseInsensitiveEnum):
     AVG_DAY = "average_day"
 
     def id(self) -> int:
+        """Database ID of the time period."""
         lookup = {
             TimePeriod.AM: 1,
             TimePeriod.IP: 2,
@@ -123,6 +125,7 @@ class TripType(CaseInsensitiveEnum):
     OD = "od"
 
     def id(self) -> list[int]:
+        """Database ID of the trip type."""
         lookup = {
             TripType.PA: [1, 2],
             TripType.OD: [3, 4],
@@ -138,7 +141,7 @@ class ZoningSystems(CaseInsensitiveEnum):
 
     @property
     def id(self) -> int:
-
+        """Database ID of the zoning system."""
         id_lookup: dict[str, int] = {
             ZoningSystems.NTEM_ZONE: _NTEM_ZONE_SYSTEM_ID,
             ZoningSystems.AUTHORITY: _AUTHORITY_SYSTEM_ID,
@@ -160,7 +163,18 @@ class Scenarios(CaseInsensitiveEnum):
     TECHNOLOGY = "technology"
 
     def id(self, version: Versions) -> int:
+        """Data base metadata ID of the scenario and version.
 
+        Parameters
+        ----------
+        version : Versions
+            Version to retrieve the ID for.
+
+        Returns
+        -------
+        int
+            ID of version and scenario
+        """
         if version != Versions.EIGHT:
             raise NotImplementedError(
                 f"Code base is not currently set up for versions other than {str(Versions.EIGHT.value)}"

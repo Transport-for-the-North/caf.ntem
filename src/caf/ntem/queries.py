@@ -567,7 +567,7 @@ class TripEndByDirectionQuery(QueryParams):
         -------
         dict[int, dict[str, base.DVector]]:
             Trip end by direction data formatted as dict[year, dict[trip_type, data]].
-        """   
+        """
 
         data = self._data_query(
             db_handler=db_handler,
