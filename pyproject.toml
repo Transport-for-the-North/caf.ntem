@@ -29,6 +29,7 @@ dependencies = { "file" = "requirements.txt" }
 [tool.setuptools.dynamic.optional-dependencies]
 dev = { "file" = "requirements_dev.txt" }
 docs = { "file" = "docs/requirements.txt" }
+build = {"file" = "requirements_build.txt"}
 
 # Dynamic versioning for editable installs
 [tool.setuptools.cmdclass]
