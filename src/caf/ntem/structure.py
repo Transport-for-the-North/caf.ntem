@@ -8,8 +8,13 @@ import pathlib
 
 # Third Party
 import pandas as pd
-import sqlalchemy as sqlalchemy
+import sqlalchemy
 from sqlalchemy import orm
+
+# Almost all classes in here are to define the DB structure,
+# so have no public methods as a subclass of DeclarativeBase.
+# Therefore I am turning off this warning for this module.
+# pylint: disable = too-few-public-methods
 
 
 def connection_string(path: pathlib.Path) -> str:
@@ -23,6 +28,8 @@ def schema_connection_string(output_path: pathlib.Path) -> str:
 
 
 class DataBaseHandler:
+    """Handles accessing and querying a database."""
+
     def __init__(self, host: pathlib.Path):
         self.engine = sqlalchemy.create_engine(connection_string(host))
 
@@ -33,6 +40,7 @@ class DataBaseHandler:
         column_names: list[str] | None = None,
         index_columns: list[str] | None = None,
     ) -> pd.DataFrame:
+        """Queries database using an sqlalchemy query and returns a dataframe."""
 
         with sqlalchemy.Connection(self.engine) as connection:
             data = pd.read_sql(query, connection)
@@ -49,7 +57,6 @@ class DataBaseHandler:
 class Base(orm.DeclarativeBase):
     """Base class for metadata tables."""
 
-    pass
     # __table_args__ = {"schema": "ntem"}
 
 
@@ -121,6 +128,8 @@ class TripType(Base):
 
 
 class ZoneType(Base):
+    """Zone system table."""
+
     __tablename__ = "zone_type_list"
     id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
     name: orm.Mapped[str]
@@ -129,6 +138,8 @@ class ZoneType(Base):
 
 
 class Zones(Base):
+    """Zoning definition table."""
+
     __tablename__ = "zones"
     id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
     zone_type_id: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(ZoneType.id))
@@ -216,12 +227,15 @@ class Planning(Base):
 
 @dataclasses.dataclass
 class NtemTripTypeLookup:
+    """Table for Trip type lookup."""
+
     production_trip_end: int = 1
     attraction_trip_end: int = 2
     origin_trip_end: int = 3
     destination_trip_end: int = 4
 
     def to_pandas(self) -> pd.DataFrame:
+        """Convert lookup names and ids into a pandas dictionary."""
         lookup = pd.Series(
             {int(value): str(key) for key, value in dataclasses.asdict(self).items()},
             name="name",

@@ -1,3 +1,5 @@
+"""Handles input configs for running the queries module."""
+
 from __future__ import annotations
 
 # Built-Ins
@@ -18,6 +20,8 @@ LOG = logging.getLogger(__name__)
 
 
 class QueryArgs(ntem_constants.InputBase):
+    """Queries config that defines the specification of the outputted data."""
+
     output_path: pathlib.Path = pydantic.Field(description="Path to the output directory.")
     """Path to directory to output the processed NTEM data."""
     db_path: pydantic.FilePath = pydantic.Field(description="Path to NTEM database.")
@@ -39,7 +43,8 @@ class QueryArgs(ntem_constants.InputBase):
     def run(self) -> None:
         """Run the query process."""
         db_handler = structure.DataBaseHandler(self.db_path)
-        self.output_path.mkdir(parents=True, exist_ok=True)
+        # no member error is raised despite correct type hint as it has been set to a pydantic field.
+        self.output_path.mkdir(parents=True, exist_ok=True)  # pylint: disable = "no-member"
 
         run_params: list[RunParams] = []
 
@@ -57,7 +62,7 @@ class QueryArgs(ntem_constants.InputBase):
 
         for run in run_params:
             for query in tqdm.tqdm(run, desc=f"Running {run.label}"):
-                LOG.info(f"Running query: {query.name}")
+                LOG.info("Running query: %s", query.name)
                 query.query(db_handler).to_csv(
                     (self.output_path / query.name).with_suffix(".csv")
                 )
@@ -65,6 +70,8 @@ class QueryArgs(ntem_constants.InputBase):
 
 @dataclasses.dataclass
 class RunParams(abc.ABC):
+    """Base class that defines the specification of queries for each data type."""
+
     years: list[int]
     """Years to produce outputs."""
     scenarios: list[ntem_constants.Scenarios]

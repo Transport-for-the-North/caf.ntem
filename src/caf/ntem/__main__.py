@@ -1,3 +1,7 @@
+"""Main module for caf.ntem."""
+
+from __future__ import annotations
+
 # Built-Ins
 import argparse
 import logging
@@ -11,8 +15,7 @@ import pydantic
 import tqdm.contrib.logging as tqdm_log
 
 # Local Imports
-import caf.ntem as ntem
-from caf.ntem import inputs, ntem_constants, queries
+from caf.ntem import __doc__, __version__, build, inputs, ntem_constants
 
 _TRACEBACK = ctk.arguments.getenv_bool("NTEM_TRACEBACK", False)
 _LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
@@ -35,7 +38,7 @@ def _create_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog=__package__,
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-        description=ntem.__doc__,
+        description=__doc__,
     )
     parser.add_argument(
         "-v",
@@ -50,7 +53,7 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         description="List of all available sub-commands",
     )
 
-    build_class = ctk.arguments.ModelArguments(ntem.build.BuildArgs)
+    build_class = ctk.arguments.ModelArguments(build.BuildArgs)
     build_class.add_subcommands(
         subparsers,
         "build",
@@ -78,7 +81,7 @@ def _create_arg_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _parse_args() -> ntem.ntem_constants.InputBase:
+def _parse_args() -> ntem_constants.InputBase:
     parser = _create_arg_parser()
     args = parser.parse_args(None if len(sys.argv[1:]) > 0 else ["-h"])
     try:
@@ -96,12 +99,15 @@ def main():
 
     details = ctk.ToolDetails(
         __package__,
-        ntem.__version__,  # ntem.__homepage__, ntem.__source_url__
+        __version__,  # ntem.__homepage__, ntem.__source_url__
     )
     with ctk.LogHelper(
         __package__, details, console=False, log_file=parameters.logging_path
     ) as log:
-        tqdm_log.logging_redirect_tqdm([log.logger, log._warning_logger])
+        # accessing protected attribute is bad, but we have to so we can set the logging level
+        tqdm_log.logging_redirect_tqdm(
+            [log.logger, log._warning_logger]  # pylint: disable="protected-access"
+        )
         if _LOG_LEVEL.lower() == "debug":
             log.add_console_handler(log_level=logging.DEBUG)
         elif _LOG_LEVEL.lower() == "info":

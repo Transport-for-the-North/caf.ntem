@@ -1,3 +1,5 @@
+"""Queries the database produced by build module to retreive formatted NTEM datasets."""
+
 from __future__ import annotations
 
 # Built-Ins
@@ -6,7 +8,7 @@ import logging
 from typing import Callable, Iterable
 
 # Third Party
-import caf.base as base
+import caf.base as base  # pylint: disable = consider-using-from-import
 import pandas as pd
 import sqlalchemy
 
@@ -92,6 +94,7 @@ class QueryParams(abc.ABC):
 
     def __init__(
         self,
+        *,
         years: Iterable[int],
         scenario: ntem_constants.Scenarios,
         output_zoning: ntem_constants.ZoningSystems = ntem_constants.ZoningSystems.NTEM_ZONE,
@@ -276,11 +279,11 @@ class PlanningQuery(QueryParams):
                 )
             )
 
-        LOG.debug(f"Running query")
+        LOG.debug("Running query")
         data = db_handler.query_to_pandas(
             query,
         )
-        LOG.debug(f"Query complete - post-processing data")
+        LOG.debug("Query complete - post-processing data")
         if data["zone_code"].isna().any():
             data["zone"] = data["zone_name"]
         else:
@@ -433,11 +436,11 @@ class CarOwnershipQuery(QueryParams):
                     structure.CarOwnership.year,
                 )
             )
-        LOG.debug(f"Running query")
+        LOG.debug("Running query")
         data = db_handler.query_to_pandas(
             query,
         )
-        LOG.debug(f"Query complete - post-processing data")
+        LOG.debug("Query complete - post-processing data")
         if data["zone_code"].isna().any():
             data["zone"] = data["zone_name"]
         else:
@@ -487,7 +490,7 @@ class TripEndByDirectionQuery(QueryParams):
         Whether to convert the segmentation IDs to names after outputting.
     """
 
-    def __init__(
+    def __init__(  # pylint: disable = too-many-arguments
         self,
         *year: int,
         scenario: ntem_constants.Scenarios,
@@ -505,12 +508,16 @@ class TripEndByDirectionQuery(QueryParams):
         output_names: bool = True,
     ):
 
+        # TODO(KF) Sensible way to batch up some of theses args?
+        # is this fine because most are optional?
+
+        # Pylint does not seem to be able to interpret multiline strings.
         if label is None:
             self._name: str = f"trip_ends_{trip_type.value}"
-            f"_{scenario.value}_{version.value}"
+            f"_{scenario.value}_{version.value}"  # pylint: disable = pointless-statement
         else:
             self._name = f"trip_ends_{trip_type.value}_{label}"
-            f"_{scenario.value}_{version.value}"
+            f"_{scenario.value}_{version.value}"  # pylint: disable = pointless-statement
 
         super().__init__(
             years=year,
@@ -638,7 +645,7 @@ class TripEndByDirectionQuery(QueryParams):
         self, data: pd.DataFrame, db_handler: structure.DataBaseHandler, replace_ids: bool
     ) -> pd.DataFrame:
 
-        LOG.debug(f"Applying lookups")
+        LOG.debug("Applying lookups")
         data_values = data.copy()
 
         replacements: dict[str, dict[int, str]] = {}
@@ -694,12 +701,13 @@ class TripEndByDirectionQuery(QueryParams):
         return data_values
 
     @_linear_interpolate
-    def _data_query(
+    def _data_query(  # pylint: disable = too-many-branches
         self,
         *,
         db_handler: structure.DataBaseHandler,
         years: Iterable[int],
     ) -> pd.DataFrame:
+        # TODO(KF) tidy/split this up to reduce number of branches
         LOG.debug("Building query for year %s", years)
         select_cols = [
             structure.TripType.name.label("trip_type"),
@@ -824,11 +832,11 @@ class TripEndByDirectionQuery(QueryParams):
                 )
                 .group_by(*groupby_cols)
             )
-        LOG.debug(f"Running query")
+        LOG.debug("Running query")
         data = db_handler.query_to_pandas(
             query,
         )
-        LOG.debug(f"Query complete")
+        LOG.debug("Query complete")
 
         return data.pivot(
             index=index_cols,
@@ -870,7 +878,7 @@ class TripEndByCarAvailabilityQuery(QueryParams):
         Whether to convert the segmentation IDs to names after outputting.
     """
 
-    def __init__(
+    def __init__(  # pylint: disable = too-many-arguments
         self,
         *years: int,
         scenario: ntem_constants.Scenarios,
@@ -885,13 +893,14 @@ class TripEndByCarAvailabilityQuery(QueryParams):
         aggregate_mode: bool = True,
         output_names: bool = True,
     ):
-
+        # TODO(KF) See above todo discussing batching inputs.
+        # Pylint does not seem to be able to interpret multiline strings.
         if label is None:
             self._name: str = f"trip_ends_by_car_availabi_lity_{years}"
-            f"_{scenario.value}_{version.value}"
+            f"_{scenario.value}_{version.value}"  # pylint: disable = pointless-statement
         else:
             self._name = f"trip_ends_by_car_availability{label}"
-            f"_{years}_{scenario.value}_{version.value}"
+            f"_{years}_{scenario.value}_{version.value}"  # pylint: disable = pointless-statement
 
         super().__init__(
             years=years,
@@ -932,7 +941,7 @@ class TripEndByCarAvailabilityQuery(QueryParams):
     def _apply_lookups(
         self, data: pd.DataFrame, db_handler: structure.DataBaseHandler, replace_ids: bool
     ) -> pd.DataFrame:
-        LOG.debug(f"Applying lookups")
+        LOG.debug("Applying lookups")
         data_values = data.copy()
 
         replacements: dict[str, dict[int, str]] = {}
@@ -988,13 +997,14 @@ class TripEndByCarAvailabilityQuery(QueryParams):
         return data_values
 
     @_linear_interpolate
-    def _data_query(
+    def _data_query(  # pylint: disable = too-many-branches
         self,
         *,
         db_handler: structure.DataBaseHandler,
         years: Iterable[int],
     ) -> pd.DataFrame:
         LOG.debug("Building query for year %s", years)
+        # TODO(KF) tidy/split this up to reduce number of branches
 
         index_cols: list[str] = ["zone", "car_availability_type", "year"]
 
@@ -1098,9 +1108,9 @@ class TripEndByCarAvailabilityQuery(QueryParams):
                 )
                 .group_by(*groupby_cols)
             )
-        LOG.debug(f"Running query")
+        LOG.debug("Running query")
         data = db_handler.query_to_pandas(query, index_columns=index_cols)
-        LOG.debug(f"Query complete")
+        LOG.debug("Query complete")
         return data
 
 

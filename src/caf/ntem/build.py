@@ -1,3 +1,5 @@
+"""Build an NTEM database to be used by the query module for extracting data."""
+
 from __future__ import annotations
 
 # Built-Ins
@@ -32,7 +34,7 @@ ACCESS_CONNCECTION_STRING = (
 
 
 @sqlalchemy.event.listens_for(sqlalchemy.Engine, "connect")
-def set_sqlite_pragma(dbapi_connection, connection_record):
+def set_sqlite_pragma(dbapi_connection, _):
     """Set the foreign key pragma for SQLite."""
     if isinstance(dbapi_connection, sqlite3.Connection):
         cursor = dbapi_connection.cursor()
@@ -135,11 +137,11 @@ def process_scenario(
             connection,
             structure.Planning,
             path,
-            ntem_constants.AccessTables.PLANNING.value,
-            metadata_id,
-            ["zone_id", "planning_data_type"],
-            {"ZoneID": "zone_id", "PlanningDataType": "planning_data_type"},
-            id_sub,
+            access_table_name=ntem_constants.AccessTables.PLANNING.value,
+            metadata_id=metadata_id,
+            id_columns=["zone_id", "planning_data_type"],
+            rename_cols={"ZoneID": "zone_id", "PlanningDataType": "planning_data_type"},
+            id_substitution=id_sub,
         )
 
         LOG.debug(msg="Proccessing Car Ownership Data")
@@ -147,11 +149,11 @@ def process_scenario(
             connection,
             structure.CarOwnership,
             path,
-            ntem_constants.AccessTables.CAR_OWNERSHIP.value,
-            metadata_id,
-            ["zone_id", "car_ownership_type"],
-            {"ZoneID": "zone_id", "CarOwnershipType": "car_ownership_type"},
-            id_sub,
+            access_table_name=ntem_constants.AccessTables.CAR_OWNERSHIP.value,
+            metadata_id=metadata_id,
+            id_columns=["zone_id", "car_ownership_type"],
+            rename_cols={"ZoneID": "zone_id", "CarOwnershipType": "car_ownership_type"},
+            id_substitution=id_sub,
         )
 
         LOG.debug("Proccessing TE Car Availability Data")
@@ -159,16 +161,16 @@ def process_scenario(
             connection,
             structure.TripEndDataByCarAvailability,
             path,
-            ntem_constants.AccessTables.TE_CAR_AVAILABILITY.value,
-            metadata_id,
-            ["zone_id", "purpose", "mode", "car_availability_type"],
-            {
+            access_table_name=ntem_constants.AccessTables.TE_CAR_AVAILABILITY.value,
+            metadata_id=metadata_id,
+            id_columns=["zone_id", "purpose", "mode", "car_availability_type"],
+            rename_cols={
                 "ZoneID": "zone_id",
                 "Purpose": "purpose",
                 "Mode": "mode",
                 "CarAvailability": "car_availability_type",
             },
-            id_sub,
+            id_substitution=id_sub,
         )
 
         LOG.debug("Proccessing TE Direction Data")
@@ -176,17 +178,17 @@ def process_scenario(
             connection,
             structure.TripEndDataByDirection,
             path,
-            ntem_constants.AccessTables.TE_DIRECTION.value,
-            metadata_id,
-            ["zone_id", "purpose", "mode", "time_period", "trip_type"],
-            {
+            access_table_name=ntem_constants.AccessTables.TE_DIRECTION.value,
+            metadata_id=metadata_id,
+            id_columns=["zone_id", "purpose", "mode", "time_period", "trip_type"],
+            rename_cols={
                 "ZoneID": "zone_id",
                 "Purpose": "purpose",
                 "Mode": "mode",
                 "TimePeriod": "time_period",
                 "TripType": "trip_type",
             },
-            id_sub,
+            id_substitution=id_sub,
         )
 
 
@@ -194,6 +196,7 @@ def _process_ntem_access_file(
     connection: sqlalchemy.Connection,
     out_table: type[structure.Base],
     path: pathlib.Path,
+    *,
     access_table_name: str,
     metadata_id: int,
     id_columns: list[str],
@@ -242,7 +245,7 @@ def _process_ntem_access_file(
 
 
 def build_db(
-    dir: pathlib.Path,
+    access_dir: pathlib.Path,
     output_dir: pathlib.Path,
     scenarios: Iterable[ntem_constants.Scenarios] | None = None,
 ):
@@ -258,7 +261,7 @@ def build_db(
     output_path = output_dir / "Nice_NTEM.db"
 
     LOG.info("Retreiving and sorted file paths")
-    data_paths, lookup_path = _sort_files(dir.glob("*.mdb"), scenarios)
+    data_paths, lookup_path = _sort_files(access_dir.glob("*.mdb"), scenarios)
 
     LOG.info("Created database tables")
     output_engine = sqlalchemy.create_engine(structure.connection_string(output_path))
@@ -277,7 +280,7 @@ def build_db(
         session.commit()
 
         for label, paths in data_paths.items():
-            LOG.info(f"Processing {label.scenario.value} - Version:{label.version}")
+            LOG.info("Processing %s - Version:%s", label.scenario.value, label.version)
             metadata = structure.MetaData(
                 scenario=label.scenario.value, version=label.version, share_type_id=1
             )
@@ -317,17 +320,6 @@ def create_lookup_tables(connection: sqlalchemy.Connection, lookup_path: pathlib
                 structure.ACCESS_TO_DB_COLUMNS[table.__tablename__],
             )
             lookup.to_sql(table.__tablename__, connection, if_exists="append", index=False)
-
-
-def convert_to_avg_period(session: orm.Session) -> None:
-    stmt = (
-        sqlalchemy.update(structure.TripEndDataByDirection)
-        .where(structure.TripEndDataByDirection.time_period == structure.TimePeriodTypes.id)
-        .values(
-            value=structure.TripEndDataByDirection.value / structure.TimePeriodTypes.divide_by
-        )
-    )
-    session.execute(stmt)
 
 
 def create_geo_lookup_table(
@@ -386,13 +378,12 @@ def create_geo_lookup_table(
     lookup_data = lookup_data.rename(columns={"ntem_zoning_id": "from_zone_id"})
     lookup_data["from_zone_type_id"] = zone_type.id
 
-    for system, id in system_id_lookup.items():
-        id_lookup = _process_geo_lookup_data(system, id, lookup_path, session)
-        system_col = f"{system}_id"
+    for system, id_ in system_id_lookup.items():
+        id_lookup = _process_geo_lookup_data(system, id_, lookup_path, session)
 
-        system_lookup = lookup_data.rename(columns={system_col: "to_zone_id"})
+        system_lookup = lookup_data.rename(columns={f"{system}_id": "to_zone_id"})
         system_lookup["to_zone_id"] = system_lookup["to_zone_id"].replace(id_lookup)
-        system_lookup["to_zone_type_id"] = id
+        system_lookup["to_zone_type_id"] = id_
         system_lookup = system_lookup[
             ["from_zone_id", "from_zone_type_id", "to_zone_id", "to_zone_type_id"]
         ]
@@ -457,6 +448,7 @@ def _sort_files(
 ) -> tuple[dict[FileType, list[pathlib.Path]], pathlib.Path]:
     """Sorts the files based on the scenario."""
     sorted_files = collections.defaultdict(lambda: [])
+    lookup = None
     if run_scenarios is None:
         run_scenarios = ntem_constants.Scenarios.__members__.values()
     for file in files:
@@ -474,5 +466,10 @@ def _sort_files(
                 break
         if "Lookup" in file.stem:
             lookup = file
+
+    if lookup is None:
+        raise FileNotFoundError(
+            "No lookup file was found when scanning the provided directory."
+        )
 
     return sorted_files, lookup

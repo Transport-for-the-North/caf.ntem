@@ -1,8 +1,9 @@
+"""Stores and processes constants and global variables and classes for the package."""
+
 from __future__ import annotations
 
 # Built-Ins
 import abc
-import dataclasses
 import enum
 import os
 import pathlib
@@ -11,16 +12,16 @@ from typing import Any
 # Third Party
 import caf.toolkit as ctk
 import numpy as np
-import pydantic
 
-_NTEM_ZONE_SYSTEM_ID: int = int(os.getenv("NTEM_ZONE_SYSTEM_ID", 1))
-_AUTHORITY_SYSTEM_ID: int = int(os.getenv("AUTHORITY_ZONE_SYSTEM_ID", 2))
-_COUNTY_SYSTEM_ID: int = int(os.getenv("COUNTY_ZONE_SYSTEM_ID", 3))
-_REGION_SYSTEM_ID: int = int(os.getenv("REGION_ZONE_SYSTEM_ID", 4))
+# We have to set the default to str despite converting back to avoid pylint whinging
+_NTEM_ZONE_SYSTEM_ID: int = int(os.getenv("NTEM_ZONE_SYSTEM_ID", "1"))
+_AUTHORITY_SYSTEM_ID: int = int(os.getenv("AUTHORITY_ZONE_SYSTEM_ID", "2"))
+_COUNTY_SYSTEM_ID: int = int(os.getenv("COUNTY_ZONE_SYSTEM_ID", "3"))
+_REGION_SYSTEM_ID: int = int(os.getenv("REGION_ZONE_SYSTEM_ID", "4"))
 
-_NTEM_LOW_YEAR: int = int(os.getenv("NTEM_LOW_YEAR", 2011))
-_NTEM_HIGH_YEAR: int = int(os.getenv("NTEM_HIGH_YEAR", 2061))
-_NTEM_YEAR_STEP: int = int(os.getenv("NTEM_YEAR_STEP", 5))
+_NTEM_LOW_YEAR: int = int(os.getenv("NTEM_LOW_YEAR", "2011"))
+_NTEM_HIGH_YEAR: int = int(os.getenv("NTEM_HIGH_YEAR", "2061"))
+_NTEM_YEAR_STEP: int = int(os.getenv("NTEM_YEAR_STEP", "5"))
 
 NTEM_YEARS: np.ndarray = np.array(
     range(
@@ -32,6 +33,8 @@ NTEM_YEARS: np.ndarray = np.array(
 
 
 class CaseInsensitiveEnum(str, enum.Enum):
+    """Enum that allows for case insensitivity. All attribute values should be lowercase."""
+
     @classmethod
     def _missing_(cls, value: Any):
         if isinstance(value, str):
@@ -57,6 +60,8 @@ class InputBase(ctk.BaseConfig, abc.ABC):
 
 
 class Purpose(enum.IntEnum):
+    """NTEM purposes, values are IDs."""
+
     HB_WORK = 1
     HB_EB = 2
     HB_EDUCATION = 3
@@ -75,6 +80,8 @@ class Purpose(enum.IntEnum):
 
 
 class Mode(CaseInsensitiveEnum):
+    """NTEM modes."""
+
     WALK = "walk"
     CYCLE = "cycle"
     CAR_DRIVER = "car_driver"
@@ -96,6 +103,8 @@ class Mode(CaseInsensitiveEnum):
 
 
 class TimePeriod(CaseInsensitiveEnum):
+    """NTEM time periods."""
+
     AM = "am"
     IP = "ip"
     PM = "pm"
@@ -121,6 +130,8 @@ class TimePeriod(CaseInsensitiveEnum):
 
 
 class TripType(CaseInsensitiveEnum):
+    """NTEM Trip Type."""
+
     PA = "pa"
     OD = "od"
 
@@ -134,6 +145,8 @@ class TripType(CaseInsensitiveEnum):
 
 
 class ZoningSystems(CaseInsensitiveEnum):
+    """NTEM zoing systems."""
+
     NTEM_ZONE = "ntem_zone"
     AUTHORITY = "authority"
     COUNTY = "county"
@@ -193,6 +206,8 @@ class Scenarios(CaseInsensitiveEnum):
 
 
 class Versions(enum.Enum):
+    """NTEM versions."""
+
     EIGHT = 8.0
 
 
