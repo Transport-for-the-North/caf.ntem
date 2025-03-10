@@ -95,7 +95,6 @@ class RunParams(abc.ABC):
         Generator[queries.QueryParams, None, None]
             Query.
         """
-        pass
 
 
 @dataclasses.dataclass
