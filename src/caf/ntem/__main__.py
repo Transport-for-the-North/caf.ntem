@@ -15,7 +15,8 @@ import pydantic
 import tqdm.contrib.logging as tqdm_log
 
 # Local Imports
-from caf.ntem import __doc__, __version__, build, inputs, ntem_constants
+import caf.ntem as ntem  # pylint: disable = ungrouped-imports
+from caf.ntem import build, inputs, ntem_constants
 
 _TRACEBACK = ctk.arguments.getenv_bool("NTEM_TRACEBACK", False)
 _LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
@@ -38,7 +39,7 @@ def _create_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog=__package__,
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-        description=__doc__,
+        description=ntem.__doc__,
     )
     parser.add_argument(
         "-v",
@@ -99,7 +100,7 @@ def main():
 
     details = ctk.ToolDetails(
         __package__,
-        __version__,  # ntem.__homepage__, ntem.__source_url__
+        ntem.__version__,  # ntem.__homepage__, ntem.__source_url__
     )
     with ctk.LogHelper(
         __package__, details, console=False, log_file=parameters.logging_path
