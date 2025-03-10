@@ -37,7 +37,7 @@ class QueryArgs(ntem_constants.InputBase):
 
     @property
     def logging_path(self) -> pathlib.Path:
-        """Return the logging path for the module"""
+        """Return the logging path for the module."""
         return self.output_path / "caf_ntem.log"
 
     def run(self) -> None:
@@ -88,6 +88,13 @@ class RunParams(abc.ABC):
 
     @abc.abstractmethod
     def __iter__(self) -> Generator[queries.QueryParams, None, None]:
+        """Iterate through queries, split by scenario.
+
+        Yields
+        ------
+        Generator[queries.QueryParams, None, None]
+            Query.
+        """
         pass
 
 
@@ -103,6 +110,13 @@ class PlanningParams(RunParams):
     """Whether to include household data in the output."""
 
     def __iter__(self) -> Generator[queries.PlanningQuery, None, None]:
+        """Iterate through planning queries, split by scenario.
+
+        Yields
+        ------
+        Generator[queries.PlanningQuery, None, None]
+            Planning query.
+        """
         for s in self.scenarios:
             yield queries.PlanningQuery(
                 *self.years,
@@ -136,6 +150,13 @@ class TripEndByDirectionRunParams(RunParams):
     """Time periods to retrieve, if None all are given"""
 
     def __iter__(self) -> Generator[queries.TripEndByDirectionQuery, None, None]:
+        """Iterate through trip end by direction queries, split by scenario.
+
+        Yields
+        ------
+        Generator[queries.PlanningQuery, None, None]
+            Trip end by direction query.
+        """
         for s in self.scenarios:
             yield queries.TripEndByDirectionQuery(
                 *self.years,
@@ -168,6 +189,13 @@ class TripEndByCarAvailabilityRunParams(RunParams):
     """Whether to aggregate modes."""
 
     def __iter__(self) -> Generator[queries.TripEndByCarAvailabilityQuery, None, None]:
+        """Iterate through trip end by car availabililty queries, split by scenario.
+
+        Yields
+        ------
+        Generator[queries.PlanningQuery, None, None]
+            Trip end by car availability query.
+        """
         for s in self.scenarios:
             yield queries.TripEndByCarAvailabilityQuery(
                 *self.years,
@@ -189,6 +217,13 @@ class CarOwnershipParams(RunParams):
     """Car ownership query params."""
 
     def __iter__(self) -> Generator[queries.CarOwnershipQuery, None, None]:
+        """Iterate through car ownership queries, split by scenario.
+
+        Yields
+        ------
+        Generator[queries.PlanningQuery, None, None]
+            Car ownership query.
+        """
         for s in self.scenarios:
             yield queries.CarOwnershipQuery(
                 *self.years,

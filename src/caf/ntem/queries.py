@@ -206,7 +206,8 @@ class PlanningQuery(QueryParams):
         self._employment: bool = employment
         self._household: bool = household
 
-    def query(self, db_handler: structure.DataBaseHandler) -> pd.DataFrame:
+    def query(self, db_handler: structure.DataBaseHandler) -> pd.DataFrame:  # noqa: D102
+        # Docstring inherited
         data = self._data_query(
             db_handler=db_handler,
             years=self._years,
@@ -296,7 +297,8 @@ class PlanningQuery(QueryParams):
         )
 
     @property
-    def name(self) -> str:
+    def name(self) -> str:  # noqa: D102
+        # Docstring inherited
         return self._name
 
 
@@ -343,7 +345,8 @@ class CarOwnershipQuery(QueryParams):
             filter_zone_names=filter_zone_names,
         )
 
-    def query(self, db_handler: structure.DataBaseHandler) -> pd.DataFrame:
+    def query(self, db_handler: structure.DataBaseHandler) -> pd.DataFrame:  # noqa: D102
+        # Docstring inherited
 
         return self._data_query(
             db_handler=db_handler,
@@ -453,7 +456,8 @@ class CarOwnershipQuery(QueryParams):
         )
 
     @property
-    def name(self) -> str:
+    def name(self) -> str:  # noqa: D102
+        # Docstring inherited
         return self._name
 
 
@@ -546,10 +550,12 @@ class TripEndByDirectionQuery(QueryParams):
             self._time_period_filter = [tp.id() for tp in time_period_filter]
 
     @property
-    def name(self) -> str:
+    def name(self) -> str:  # noqa: D102
+        # Docstring inherited
         return self._name
 
-    def query(self, db_handler: structure.DataBaseHandler) -> pd.DataFrame:
+    def query(self, db_handler: structure.DataBaseHandler) -> pd.DataFrame:  # noqa: D102
+        # Docstring inherited
 
         data = self._data_query(
             db_handler=db_handler,
@@ -924,10 +930,12 @@ class TripEndByCarAvailabilityQuery(QueryParams):
             self._mode_filter = [m.id() for m in mode_filter]
 
     @property
-    def name(self) -> str:
+    def name(self) -> str:  # noqa: D102
+        # Docstring inherited
         return self._name
 
-    def query(self, db_handler: structure.DataBaseHandler) -> pd.DataFrame:
+    def query(self, db_handler: structure.DataBaseHandler) -> pd.DataFrame:  # noqa: D102
+        # Docstring inherited
 
         data = self._data_query(
             db_handler=db_handler,
@@ -1115,7 +1123,7 @@ class TripEndByCarAvailabilityQuery(QueryParams):
 
 
 def _interpolation_years(year) -> tuple[int, int] | None:
-    """Calculates years required for interpolation"""
+    """Calculate years required for interpolation."""
 
     if year in ntem_constants.NTEM_YEARS:
         return None
@@ -1127,7 +1135,7 @@ def _interpolation_years(year) -> tuple[int, int] | None:
 
 
 def _zone_subset(zone_names: list[str], zoning_id: int) -> sqlalchemy.Select:
-    """SQL query which returns the subset of zones."""
+    """Query which returns the subset of zones."""
     return (
         sqlalchemy.select(structure.GeoLookup.from_zone_id)
         .join(

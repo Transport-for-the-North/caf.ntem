@@ -70,13 +70,14 @@ class BuildArgs(ntem_constants.InputBase):
 
     @property
     def logging_path(self) -> pathlib.Path:
+        """Path to log file for the module."""
         return self.output_path / "caf_ntem.log"
 
 
 def access_to_df(
     path: pathlib.Path, table_name: str, substitute: dict[str, str] | None = None
 ) -> pd.DataFrame:
-    """Accesses a table in the database and returns it as a pandas DataFrame.
+    """Access a table in the database and returns it as a pandas DataFrame.
 
     Parameters
     ----------
@@ -88,7 +89,7 @@ def access_to_df(
         A dictionary to substitute column names. If a column name is not in the dictionary,
         it is removed from the DataFrame. If None, no substitutions are made.
 
-    returns
+    Returns
     -------
     pd.DataFrame
         The entire table as a pandas DataFrame.
@@ -203,7 +204,7 @@ def _process_ntem_access_file(
     rename_cols: dict[str, str],
     id_substitution: dict[int, int],
 ) -> None:
-    """Reads, formats and inserts data from the access file path and table given.
+    """Read, format and insert data from the access file path and table given.
 
     Parameters
     ----------
@@ -249,7 +250,7 @@ def build_db(
     output_dir: pathlib.Path,
     scenarios: Iterable[ntem_constants.Scenarios] | None = None,
 ):
-    """Processes the NTEM data from the access files and outputs a SQLite database.
+    """Process the NTEM data from the access files and outputs a SQLite database.
 
     Parameters
     ----------
@@ -325,7 +326,7 @@ def create_lookup_tables(connection: sqlalchemy.Connection, lookup_path: pathlib
 def create_geo_lookup_table(
     session: orm.Session, lookup_path: pathlib.Path, source: str, version: str
 ) -> pd.DataFrame:
-    """Creates and inserts geo lookup tables using the access data.
+    """Create and insert geo lookup tables using the access data.
 
     Parameters
     ----------
@@ -401,7 +402,7 @@ def create_geo_lookup_table(
 def _process_geo_lookup_data(
     system: str, system_id: int, lookup_path: pathlib.Path, session: orm.Session
 ) -> dict[int, int]:
-    """reads zoning lookups ands adds data to Zones table. Returns NTEM -> db conversion."""
+    """Read zoning lookups and add data to Zones table. Returns NTEM -> db conversion."""
     # need to pass the session since we query data immediately after writing so we need to flush
     system_data = access_to_df(
         lookup_path,

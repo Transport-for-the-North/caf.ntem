@@ -18,12 +18,12 @@ from sqlalchemy import orm
 
 
 def connection_string(path: pathlib.Path) -> str:
-    """Creates a connection string to the database."""
+    """Create a connection string to the database."""
     return f"sqlite:///{path.resolve()}"
 
 
 def schema_connection_string(output_path: pathlib.Path) -> str:
-    """Creates a connection string to the database."""
+    """Create a connection string to the database."""
     return f"ATTACH DATABASE {output_path.resolve()} AS ntem"
 
 
@@ -40,7 +40,7 @@ class DataBaseHandler:
         column_names: list[str] | None = None,
         index_columns: list[str] | None = None,
     ) -> pd.DataFrame:
-        """Queries database using an sqlalchemy query and returns a dataframe."""
+        """Query database using an sqlalchemy query and returns a dataframe."""
 
         with sqlalchemy.Connection(self.engine) as connection:
             data = pd.read_sql(query, connection)

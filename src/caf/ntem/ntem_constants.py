@@ -176,7 +176,7 @@ class Scenarios(CaseInsensitiveEnum):
     TECHNOLOGY = "technology"
 
     def id(self, version: Versions) -> int:
-        """Data base metadata ID of the scenario and version.
+        """Database metadata ID of the scenario and version.
 
         Parameters
         ----------
