@@ -15,7 +15,7 @@ import pydantic
 import tqdm.contrib.logging as tqdm_log
 
 # Local Imports
-import caf.ntem as ntem  # pylint: disable = ungrouped-imports
+import caf.ntem as ntem  # pylint: disable = ungrouped-imports, consider-using-from-import
 from caf.ntem import build, inputs, ntem_constants
 
 _TRACEBACK = ctk.arguments.getenv_bool("NTEM_TRACEBACK", False)
