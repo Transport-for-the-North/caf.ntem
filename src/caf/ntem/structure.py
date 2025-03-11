@@ -5,6 +5,7 @@ from __future__ import annotations
 # Built-Ins
 import dataclasses
 import pathlib
+from typing import Optional
 
 # Third Party
 import pandas as pd
@@ -65,7 +66,7 @@ class MetaData(Base):
 
     __tablename__ = "metadata"
     id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
-    share_type_id: orm.Mapped[int | None]
+    share_type_id: orm.Mapped[Optional[int]]
     version: orm.Mapped[str]
     scenario: orm.Mapped[str]
 
@@ -144,7 +145,7 @@ class Zones(Base):
     id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
     zone_type_id: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(ZoneType.id))
     name: orm.Mapped[str]
-    source_id_or_code: orm.Mapped[str | None]
+    source_id_or_code: orm.Mapped[Optional[str]]
 
 
 class GeoLookup(Base):
