@@ -8,7 +8,7 @@ import logging
 import pathlib
 import re
 import sqlite3
-from typing import Iterable, NamedTuple
+from typing import Iterable, NamedTuple, Optional
 
 # Third Party
 import caf.toolkit as ctk
@@ -61,7 +61,7 @@ class BuildArgs(ntem_constants.InputBase):
     )
     """Directory containing NTEM MS Access files"""
 
-    scenarios: list[ntem_constants.Scenarios] | None = None
+    scenarios: Optional[list[ntem_constants.Scenarios]] = None
     """Scenarios to port into the database"""
 
     def run(self):
