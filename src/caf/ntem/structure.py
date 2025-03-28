@@ -236,7 +236,7 @@ class NtemTripTypeLookup:
     destination_trip_end: int = 4
 
     def to_pandas(self) -> pd.DataFrame:
-        """Convert lookup names and ids into a pandas dictionary."""
+        """Convert lookup names and ids into a pandas DataFrame."""
         lookup = pd.Series(
             {int(value): str(key) for key, value in dataclasses.asdict(self).items()},
             name="name",
