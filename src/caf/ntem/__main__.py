@@ -55,12 +55,21 @@ def _create_arg_parser() -> argparse.ArgumentParser:
     )
 
     build_class = ctk.arguments.ModelArguments(build.BuildArgs)
+
+    suffixes = ("", "")
+    if build.check_dependencies():
+        suffixes = (
+            " - feature not installed.",
+            " WARNING - dependencies required for this feature aren't installed,"
+            " install the 'build_db' optional dependencies (caf.base[build_db])."
+        )
+
     build_class.add_subcommands(
         subparsers,
         "build",
-        help="Build an SQLite database from NTEM MS Access files",
+        help="Build an SQLite database from NTEM MS Access files" + suffixes[0],
         description="Create an SQLite database at the path specified "
-        "from specified NTEM MS Access files.",
+        "from specified NTEM MS Access files." + suffixes[1],
         formatter_class=ctk.arguments.TidyUsageArgumentDefaultsHelpFormatter,
     )
 
@@ -71,19 +80,16 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         formatter_class=ctk.arguments.TidyUsageArgumentDefaultsHelpFormatter,
     )
 
-    query_parser.add_argument(
-        "config_path",
-        type=pathlib.Path,
-        help="path to YAML config file containing run parameters",
-    )
-
-    query_parser.set_defaults(dataclass_parse_func=_config_parse, model=inputs.QueryArgs)
+    query_args = ctk.arguments.ModelArguments(inputs.QueryArgs)
+    query_args.add_config_arguments(query_parser)
 
     return parser
 
 
 def _parse_args() -> ntem_constants.InputBase:
-    parser = _create_arg_parser()
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=arguments.TypeAnnotationWarning)
+        parser = _create_arg_parser()
     args = parser.parse_args(None if len(sys.argv[1:]) > 0 else ["-h"])
     try:
         return args.dataclass_parse_func(args)

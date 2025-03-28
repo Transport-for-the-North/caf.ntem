@@ -61,7 +61,11 @@ class BuildArgs(ntem_constants.InputBase):
     )
     """Directory containing NTEM MS Access files"""
 
-    scenarios: Optional[list[ntem_constants.Scenarios]] = None
+    scenarios: list[ntem_constants.Scenarios] | None = pydantic.Field(
+        default=None,
+        description="Scenarios to input into the database, valid scenarios are: "
+        + ", ".join(i.value for i in ntem_constants.Scenarios),
+    )
     """Scenarios to port into the database"""
 
     def run(self):
@@ -268,9 +272,11 @@ def build_db(
     output_engine = sqlalchemy.create_engine(structure.connection_string(output_path))
 
     if _CLEAN_DATABASE:
-        structure.Base.metadata.drop_all(output_engine)
+        confirm = input("Cleaning NTEM data from database, are you sure? Y/N ")
+        if confirm.lower().strip() in ("y", "yes"):
+            structure.Base.metadata.drop_all(output_engine)
 
-    structure.Base.metadata.create_all(output_engine, checkfirst=False)
+    structure.Base.metadata.create_all(output_engine, checkfirst=True)
 
     with orm.Session(output_engine) as session:
 
@@ -344,6 +350,11 @@ def create_geo_lookup_table(
     pd.DataFrame
         lookup between NTEM zone ids and the IDs in the database
     """
+    # TODO: Update function to handle:
+    # - zone systems already exist in the database
+    # - user defined names for any new zone systems being created
+    # - user defined ids for existing zone systems when creating lookup
+
     # add zone types so we can access IDs later
     zone_type = structure.ZoneType(name="zone", source=source, version=version)
     session.add(zone_type)
