@@ -360,7 +360,7 @@ class CarOwnershipQuery(QueryParams):
         db_handler: structure.DataBaseHandler,
         years: Iterable[int],
     ) -> pd.DataFrame:
-        LOG.debug("Building query for year %s", years)
+        LOG.debug("Building car ownership query for year %s", years)
 
         data_filter = structure.CarOwnership.year.in_(years) & (
             structure.CarOwnership.metadata_id == self._metadata_id
@@ -466,7 +466,7 @@ class TripEndByDirectionQuery(QueryParams):
 
     Parameters
     ----------
-    years : Iterable[int]
+    years : int
         Years to provide data / interpolate.
     scenario : ntem_constants.Scenarios
         Scenario to provide data.
@@ -517,11 +517,15 @@ class TripEndByDirectionQuery(QueryParams):
 
         # Pylint does not seem to be able to interpret multiline strings.
         if label is None:
-            self._name: str = f"trip_ends_{trip_type.value}"
-            f"_{scenario.value}_{version.value}"  # pylint: disable = pointless-statement
+            self._name: str = (
+                f"trip_ends_{trip_type.value}"
+                f"_{scenario.value}_{version.value}"
+            )
         else:
-            self._name = f"trip_ends_{trip_type.value}_{label}"
-            f"_{scenario.value}_{version.value}"  # pylint: disable = pointless-statement
+            self._name = (
+                f"trip_ends_{trip_type.value}_{label}"
+                f"_{scenario.value}_{version.value}"
+            )
 
         super().__init__(
             years=year,
@@ -714,7 +718,7 @@ class TripEndByDirectionQuery(QueryParams):
         years: Iterable[int],
     ) -> pd.DataFrame:
         # TODO(KF) tidy/split this up to reduce number of branches
-        LOG.debug("Building query for year %s", years)
+        LOG.debug("Building trip end query for year %s", years)
         select_cols = [
             structure.TripType.name.label("trip_type"),
             structure.TripEndDataByDirection.time_period,
@@ -856,7 +860,7 @@ class TripEndByCarAvailabilityQuery(QueryParams):
 
     Parameters
     ----------
-    years : Iterable[int]
+    years : int
         Years to provide data / interpolate.
     scenario : ntem_constants.Scenarios
         Scenario to provide data.
@@ -902,11 +906,15 @@ class TripEndByCarAvailabilityQuery(QueryParams):
         # TODO(KF) See above todo discussing batching inputs.
         # Pylint does not seem to be able to interpret multiline strings.
         if label is None:
-            self._name: str = f"trip_ends_by_car_availabi_lity_{years}"
-            f"_{scenario.value}_{version.value}"  # pylint: disable = pointless-statement
+            self._name: str = (
+                f"trip_ends_by_car_availability_{years}"
+                f"_{scenario.value}_{version.value}"
+            )
         else:
-            self._name = f"trip_ends_by_car_availability{label}"
-            f"_{years}_{scenario.value}_{version.value}"  # pylint: disable = pointless-statement
+            self._name = (
+                f"trip_ends_by_car_availability{label}"
+                f"_{years}_{scenario.value}_{version.value}"
+            )
 
         super().__init__(
             years=years,
@@ -1011,7 +1019,7 @@ class TripEndByCarAvailabilityQuery(QueryParams):
         db_handler: structure.DataBaseHandler,
         years: Iterable[int],
     ) -> pd.DataFrame:
-        LOG.debug("Building query for year %s", years)
+        LOG.debug("Building trip end car availability query for year %s", years)
         # TODO(KF) tidy/split this up to reduce number of branches
 
         index_cols: list[str] = ["zone", "car_availability_type", "year"]
