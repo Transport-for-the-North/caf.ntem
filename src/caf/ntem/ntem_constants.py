@@ -209,12 +209,3 @@ class Versions(enum.Enum):
     """NTEM versions."""
 
     EIGHT = 8.0
-
-
-class AccessTables(enum.Enum):
-    """Defines the names of the access data tables."""
-
-    PLANNING = "Planning"
-    CAR_OWNERSHIP = "CarOwnership"
-    TE_CAR_AVAILABILITY = "TripEndDataByCarAvailability"
-    TE_DIRECTION = "TripEndDataByDirection"

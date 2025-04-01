@@ -8,7 +8,8 @@ import logging
 import pathlib
 import re
 import sqlite3
-from typing import Iterable, NamedTuple, Optional
+from typing import Iterable, NamedTuple
+import enum
 
 # Third Party
 import caf.toolkit as ctk
@@ -28,9 +29,20 @@ INVALID_ZONE_ID = 9999
 
 LOG = logging.getLogger(__name__)
 
-ACCESS_CONNCECTION_STRING = (
+ACCESS_CONNECTION_STRING = (
     "access+pyodbc:///?odbc_connect=DRIVER={{Microsoft Access Driver (*.mdb, *.accdb)}};DBQ={}"
 )
+
+
+
+
+class AccessTables(enum.Enum):
+    """Defines the names of the access data tables."""
+
+    PLANNING = "Planning"
+    CAR_OWNERSHIP = "CarOwnership"
+    TE_CAR_AVAILABILITY = "TripEndDataByCarAvailability"
+    TE_DIRECTION = "TripEndDataByDirection"
 
 
 @sqlalchemy.event.listens_for(sqlalchemy.Engine, "connect")
@@ -52,7 +64,7 @@ class FileType(NamedTuple):
 
 
 class BuildArgs(ntem_constants.InputBase):
-    """Input areguments for the build command."""
+    """Input arguments for the build command."""
 
     output_path: pathlib.Path = pydantic.Field(description="Path to the output directory.")
     """Path to directory to output SQLite database file."""
@@ -78,7 +90,7 @@ class BuildArgs(ntem_constants.InputBase):
         return self.output_path / "caf_ntem.log"
 
 
-def access_to_df(
+def _access_to_df(
     path: pathlib.Path, table_name: str, substitute: dict[str, str] | None = None
 ) -> pd.DataFrame:
     """Access a table in the database and returns it as a pandas DataFrame.
@@ -98,8 +110,8 @@ def access_to_df(
     pd.DataFrame
         The entire table as a pandas DataFrame.
     """
-    engine = sqlalchemy.create_engine(ACCESS_CONNCECTION_STRING.format(path.resolve()))
-    query = f"SELECT * FROM {table_name}"
+    engine = sqlalchemy.create_engine(ACCESS_CONNECTION_STRING.format(path.resolve()))
+    query = sqlalchemy.select(table_name)
 
     df = pd.read_sql(query, engine)
     if substitute is not None:
@@ -121,7 +133,7 @@ def process_scenario(
 ):
     """Process data for a scenario and version and insert in into the database.
 
-    Paramerters
+    Parameters
     -----------
     connection : sqlalchemy.Connection
         The connection to the database to insert into.
@@ -130,43 +142,48 @@ def process_scenario(
     metadata_id : int
         The id of the metadata for the data to insert.
     paths : list[pathlib.Path]
-        The paths to the data to unpack and insert.
+        The paths to the data to unpack and insert. These should point to the 
+        NTEM access database files for each region that fall under 
+        the same metadata ID (i.e. same scenario and version).
+    id_sub: dict[int, int]
+        Dictionary to map NTEM zone IDs to database IDs.
+        This is used to replace the zone IDs in the data with the database IDs.
     """
 
     for path in tqdm.tqdm(
         paths, desc=f"Processing: {label.scenario.value} - Version:{label.version}"
     ):
 
-        LOG.debug("Proccessing Planning Data")
+        LOG.debug("Processing Planning Data")
         _process_ntem_access_file(
             connection,
             structure.Planning,
             path,
-            access_table_name=ntem_constants.AccessTables.PLANNING.value,
+            access_table_name=AccessTables.PLANNING.value,
             metadata_id=metadata_id,
             id_columns=["zone_id", "planning_data_type"],
             rename_cols={"ZoneID": "zone_id", "PlanningDataType": "planning_data_type"},
             id_substitution=id_sub,
         )
 
-        LOG.debug(msg="Proccessing Car Ownership Data")
+        LOG.debug(msg="Processing Car Ownership Data")
         _process_ntem_access_file(
             connection,
             structure.CarOwnership,
             path,
-            access_table_name=ntem_constants.AccessTables.CAR_OWNERSHIP.value,
+            access_table_name=AccessTables.CAR_OWNERSHIP.value,
             metadata_id=metadata_id,
             id_columns=["zone_id", "car_ownership_type"],
             rename_cols={"ZoneID": "zone_id", "CarOwnershipType": "car_ownership_type"},
             id_substitution=id_sub,
         )
 
-        LOG.debug("Proccessing TE Car Availability Data")
+        LOG.debug("Processing TE Car Availability Data")
         _process_ntem_access_file(
             connection,
             structure.TripEndDataByCarAvailability,
             path,
-            access_table_name=ntem_constants.AccessTables.TE_CAR_AVAILABILITY.value,
+            access_table_name=AccessTables.TE_CAR_AVAILABILITY.value,
             metadata_id=metadata_id,
             id_columns=["zone_id", "purpose", "mode", "car_availability_type"],
             rename_cols={
@@ -178,12 +195,12 @@ def process_scenario(
             id_substitution=id_sub,
         )
 
-        LOG.debug("Proccessing TE Direction Data")
+        LOG.debug("Processing TE Direction Data")
         _process_ntem_access_file(
             connection,
             structure.TripEndDataByDirection,
             path,
-            access_table_name=ntem_constants.AccessTables.TE_DIRECTION.value,
+            access_table_name=AccessTables.TE_DIRECTION.value,
             metadata_id=metadata_id,
             id_columns=["zone_id", "purpose", "mode", "time_period", "trip_type"],
             rename_cols={
@@ -226,9 +243,12 @@ def _process_ntem_access_file(
         The ID columns of the data in the table. Note: if the column has been renamed, use the new name.
     rename_cols : dict[str, str]
         One to one map between column name in the table and the name to replace it.
+    id_substitution: dict[int, int]
+        Dictionary to map NTEM zone IDs to database IDs.
+        This is used to replace the zone IDs in the data with the database IDs.
     """
     LOG.debug("Reading access data")
-    data = access_to_df(path, access_table_name).rename(columns=rename_cols)
+    data = _access_to_df(path, access_table_name).rename(columns=rename_cols)
     LOG.debug("Processing data")
     # Adjust so the column names match the database structure
     data["metadata_id"] = metadata_id
@@ -263,9 +283,9 @@ def build_db(
     output_dir : pathlib.Path
         The path to the directory to output the SQLite database.
     """
-    output_path = output_dir / "Nice_NTEM.db"
+    output_path = output_dir / "NTEM.sqlite"
 
-    LOG.info("Retreiving and sorted file paths")
+    LOG.info("Retrieving and sorted file paths")
     data_paths, lookup_path = _sort_files(access_dir.glob("*.mdb"), scenarios)
 
     LOG.info("Created database tables")
@@ -321,7 +341,7 @@ def create_lookup_tables(connection: sqlalchemy.Connection, lookup_path: pathlib
             lookup.to_sql(table.__tablename__, connection, if_exists="append", index=False)
 
         else:
-            lookup = access_to_df(
+            lookup = _access_to_df(
                 lookup_path,
                 structure.DB_TO_ACCESS_TABLE_LOOKUP[table.__tablename__],
                 structure.ACCESS_TO_DB_COLUMNS[table.__tablename__],
@@ -381,7 +401,7 @@ def create_geo_lookup_table(
     }
 
     # lookup data will be used to create the geolookup table
-    lookup_data = access_to_df(
+    lookup_data = _access_to_df(
         lookup_path,
         structure.DB_TO_ACCESS_TABLE_LOOKUP["ntem_zoning"],
         structure.ACCESS_TO_DB_COLUMNS["ntem_zoning"],
@@ -415,7 +435,7 @@ def _process_geo_lookup_data(
 ) -> dict[int, int]:
     """Read zoning lookups and add data to Zones table. Returns NTEM -> db conversion."""
     # need to pass the session since we query data immediately after writing so we need to flush
-    system_data = access_to_df(
+    system_data = _access_to_df(
         lookup_path,
         structure.DB_TO_ACCESS_TABLE_LOOKUP[system],
         structure.ACCESS_TO_DB_COLUMNS[system],
