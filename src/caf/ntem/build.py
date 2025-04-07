@@ -51,7 +51,7 @@ def check_dependencies() -> bool:
     """
     try:
         # Third Party
-        import sqlalchemy_access  # pylint: disable=unused-import
+        import sqlalchemy_access  # pylint: disable=unused-import, import-outside-toplevel
 
         return True
     except (ImportError, ModuleNotFoundError) as exc:
@@ -368,7 +368,7 @@ def create_lookup_tables(connection: sqlalchemy.Connection, lookup_path: pathlib
     for table in tqdm.tqdm(structure.LOOKUP_TABLES, desc="Creating Lookup Tables"):
 
         if structure.DB_TO_ACCESS_TABLE_LOOKUP[table.__tablename__] == "NtemTripTypeLookup":
-            lookup = structure.NtemTripTypeLookup().to_pandas()
+            lookup = structure.NtemTripTypeLookup().to_dataframe()
             lookup.to_sql(table.__tablename__, connection, if_exists="append", index=False)
 
         else:
@@ -401,7 +401,7 @@ def create_geo_lookup_table(
     pd.DataFrame
         lookup between NTEM zone ids and the IDs in the database
     """
-    # TODO: Update function to handle:
+    # TODO(kf): Update function to handle:
     # - zone systems already exist in the database
     # - user defined names for any new zone systems being created
     # - user defined ids for existing zone systems when creating lookup

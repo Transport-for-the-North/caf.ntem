@@ -18,9 +18,12 @@ from sqlalchemy import orm
 # pylint: disable = too-few-public-methods
 
 
-def connection_string(path: pathlib.Path) -> str:
+def connection_string(path: pathlib.Path, driver_name: str = "sqlite") -> str:
     """Create a connection string to the database."""
-    return f"sqlite:///{path.resolve()}"
+    return sqlalchemy.URL.create(
+        drivername=driver_name,
+        database=path.resolve(),
+    )
 
 
 def schema_connection_string(output_path: pathlib.Path) -> str:
@@ -34,11 +37,11 @@ class DataBaseHandler:
     def __init__(self, host: pathlib.Path):
         self.engine = sqlalchemy.create_engine(connection_string(host))
 
-    def query_to_pandas(
+    def query_to_dataframe(
         self,
         query: sqlalchemy.Selectable,
         *,
-        column_names: list[str] | None = None,
+        column_names: dict[str, str] | None = None,
         index_columns: list[str] | None = None,
     ) -> pd.DataFrame:
         """Query database using an sqlalchemy query and returns a dataframe."""
@@ -47,7 +50,7 @@ class DataBaseHandler:
             data = pd.read_sql(query, connection)
 
         if column_names is not None:
-            data.columns = column_names
+            data = data.rename(columns=column_names)
 
         if index_columns is not None:
             data = data.set_index(index_columns)
@@ -235,7 +238,7 @@ class NtemTripTypeLookup:
     origin_trip_end: int = 3
     destination_trip_end: int = 4
 
-    def to_pandas(self) -> pd.DataFrame:
+    def to_dataframe(self) -> pd.DataFrame:
         """Convert lookup names and ids into a pandas DataFrame."""
         lookup = pd.Series(
             {int(value): str(key) for key, value in dataclasses.asdict(self).items()},

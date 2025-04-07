@@ -4,7 +4,6 @@ from __future__ import annotations
 
 # Built-Ins
 import abc
-import dataclasses
 import logging
 import pathlib
 from typing import Generator
@@ -12,6 +11,7 @@ from typing import Generator
 # Third Party
 import pydantic
 import tqdm
+from pydantic import dataclasses
 
 # Local Imports
 from caf.ntem import ntem_constants, queries, structure

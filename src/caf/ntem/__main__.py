@@ -6,7 +6,6 @@ from __future__ import annotations
 import argparse
 import logging
 import os
-import pathlib
 import sys
 import warnings
 
@@ -122,7 +121,7 @@ def main():
             log.add_console_handler(log_level=logging.INFO)
         else:
             raise NotImplementedError(
-                "The Enviroment constant 'LOG_LEVEL' should"
+                "The Environment constant 'LOG_LEVEL' should"
                 " either be set to 'debug' or 'info"
             )
 
