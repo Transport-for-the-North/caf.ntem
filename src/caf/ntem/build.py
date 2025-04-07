@@ -4,12 +4,12 @@ from __future__ import annotations
 
 # Built-Ins
 import collections
+import enum
 import logging
 import pathlib
 import re
 import sqlite3
 from typing import Iterable, NamedTuple
-import enum
 
 # Third Party
 import caf.toolkit as ctk
@@ -33,7 +33,30 @@ ACCESS_CONNECTION_STRING = (
     "access+pyodbc:///?odbc_connect=DRIVER={{Microsoft Access Driver (*.mdb, *.accdb)}};DBQ={}"
 )
 
+METADATA_ID_COLUMN = ntem_constants.BuildColumnNames.METADATA_ID.value
+"""Name of the metadata ID column in the database."""
+ZONE_SYSTEM_ID_COLUMN = ntem_constants.BuildColumnNames.ZONE_SYSTEM_ID
+"""Name of the zone system ID column in the database."""
+ZONE_ID_COLUMN = ntem_constants.BuildColumnNames.ZONE_ID
+"""Name of the zone ID column in the database."""
 
+
+def check_dependencies() -> bool:
+    """Check if the dependencies are installed.
+
+    Returns
+    -------
+    bool
+        True if the dependencies are installed, False otherwise.
+    """
+    try:
+        # Third Party
+        import sqlalchemy_access  # pylint: disable=unused-import
+
+        return True
+    except (ImportError, ModuleNotFoundError) as exc:
+        LOG.debug("Error importing sqlalchemy-access: %s", exc)
+        return False
 
 
 class AccessTables(enum.Enum):
@@ -43,6 +66,56 @@ class AccessTables(enum.Enum):
     CAR_OWNERSHIP = "CarOwnership"
     TE_CAR_AVAILABILITY = "TripEndDataByCarAvailability"
     TE_DIRECTION = "TripEndDataByDirection"
+
+    @property
+    def id_columns(self) -> list[str]:
+        """The ID columns of the table."""
+        id_cols = {
+            AccessTables.PLANNING: [ZONE_ID_COLUMN, "planning_data_type"],
+            AccessTables.CAR_OWNERSHIP: [ZONE_ID_COLUMN, "car_ownership_type"],
+            AccessTables.TE_CAR_AVAILABILITY: [
+                ZONE_ID_COLUMN,
+                "purpose",
+                "mode",
+                "car_availability_type",
+            ],
+            AccessTables.TE_DIRECTION: [
+                ZONE_ID_COLUMN,
+                "purpose",
+                "mode",
+                "time_period",
+                "trip_type",
+            ],
+        }
+        return id_cols[self]
+
+    @property
+    def replace_columns(self) -> dict[str, str]:
+        """The names columns to replace in the table and the substitution to use."""
+        replace_cols = {
+            AccessTables.CAR_OWNERSHIP: {
+                "ZoneID": ZONE_ID_COLUMN,
+                "CarOwnershipType": "car_ownership_type",
+            },
+            AccessTables.PLANNING: {
+                "ZoneID": ZONE_ID_COLUMN,
+                "PlanningDataType": "planning_data_type",
+            },
+            AccessTables.TE_CAR_AVAILABILITY: {
+                "ZoneID": ZONE_ID_COLUMN,
+                "Purpose": "purpose",
+                "Mode": "mode",
+                "CarAvailability": "car_availability_type",
+            },
+            AccessTables.TE_DIRECTION: {
+                "ZoneID": ZONE_ID_COLUMN,
+                "Purpose": "purpose",
+                "Mode": "mode",
+                "TimePeriod": "time_period",
+                "TripType": "trip_type",
+            },
+        }
+        return replace_cols[self]
 
 
 @sqlalchemy.event.listens_for(sqlalchemy.Engine, "connect")
@@ -142,8 +215,8 @@ def process_scenario(
     metadata_id : int
         The id of the metadata for the data to insert.
     paths : list[pathlib.Path]
-        The paths to the data to unpack and insert. These should point to the 
-        NTEM access database files for each region that fall under 
+        The paths to the data to unpack and insert. These should point to the
+        NTEM access database files for each region that fall under
         the same metadata ID (i.e. same scenario and version).
     id_sub: dict[int, int]
         Dictionary to map NTEM zone IDs to database IDs.
@@ -153,65 +226,23 @@ def process_scenario(
     for path in tqdm.tqdm(
         paths, desc=f"Processing: {label.scenario.value} - Version:{label.version}"
     ):
-
-        LOG.debug("Processing Planning Data")
-        _process_ntem_access_file(
-            connection,
-            structure.Planning,
-            path,
-            access_table_name=AccessTables.PLANNING.value,
-            metadata_id=metadata_id,
-            id_columns=["zone_id", "planning_data_type"],
-            rename_cols={"ZoneID": "zone_id", "PlanningDataType": "planning_data_type"},
-            id_substitution=id_sub,
-        )
-
-        LOG.debug(msg="Processing Car Ownership Data")
-        _process_ntem_access_file(
-            connection,
-            structure.CarOwnership,
-            path,
-            access_table_name=AccessTables.CAR_OWNERSHIP.value,
-            metadata_id=metadata_id,
-            id_columns=["zone_id", "car_ownership_type"],
-            rename_cols={"ZoneID": "zone_id", "CarOwnershipType": "car_ownership_type"},
-            id_substitution=id_sub,
-        )
-
-        LOG.debug("Processing TE Car Availability Data")
-        _process_ntem_access_file(
-            connection,
-            structure.TripEndDataByCarAvailability,
-            path,
-            access_table_name=AccessTables.TE_CAR_AVAILABILITY.value,
-            metadata_id=metadata_id,
-            id_columns=["zone_id", "purpose", "mode", "car_availability_type"],
-            rename_cols={
-                "ZoneID": "zone_id",
-                "Purpose": "purpose",
-                "Mode": "mode",
-                "CarAvailability": "car_availability_type",
-            },
-            id_substitution=id_sub,
-        )
-
-        LOG.debug("Processing TE Direction Data")
-        _process_ntem_access_file(
-            connection,
-            structure.TripEndDataByDirection,
-            path,
-            access_table_name=AccessTables.TE_DIRECTION.value,
-            metadata_id=metadata_id,
-            id_columns=["zone_id", "purpose", "mode", "time_period", "trip_type"],
-            rename_cols={
-                "ZoneID": "zone_id",
-                "Purpose": "purpose",
-                "Mode": "mode",
-                "TimePeriod": "time_period",
-                "TripType": "trip_type",
-            },
-            id_substitution=id_sub,
-        )
+        for access_table, output_table in {
+            AccessTables.PLANNING: structure.Planning,
+            AccessTables.CAR_OWNERSHIP: structure.CarOwnership,
+            AccessTables.TE_CAR_AVAILABILITY: structure.TripEndDataByCarAvailability,
+            AccessTables.TE_DIRECTION: structure.TripEndDataByDirection,
+        }.items():
+            LOG.debug("Processing %s", access_table.value)
+            _process_ntem_access_file(
+                connection,
+                output_table,
+                path,
+                access_table_name=access_table.value,
+                metadata_id=metadata_id,
+                id_columns=access_table.id_columns,
+                rename_cols=access_table.replace_columns,
+                id_substitution=id_sub,
+            )
 
 
 def _process_ntem_access_file(
@@ -251,12 +282,12 @@ def _process_ntem_access_file(
     data = _access_to_df(path, access_table_name).rename(columns=rename_cols)
     LOG.debug("Processing data")
     # Adjust so the column names match the database structure
-    data["metadata_id"] = metadata_id
-    data["zone_type_id"] = 1
+    data[METADATA_ID_COLUMN] = metadata_id
+    data[ZONE_SYSTEM_ID_COLUMN] = 1
 
-    data = data[data["zone_id"] != INVALID_ZONE_ID]
+    data = data[data[ZONE_ID_COLUMN] != INVALID_ZONE_ID]
 
-    id_columns = ["metadata_id", "zone_type_id"] + id_columns
+    id_columns = [METADATA_ID_COLUMN, ZONE_SYSTEM_ID_COLUMN] + id_columns
 
     data = data.melt(
         id_columns,
@@ -407,17 +438,28 @@ def create_geo_lookup_table(
         structure.ACCESS_TO_DB_COLUMNS["ntem_zoning"],
     )
     lookup_data["ntem_zoning_id"] = lookup_data["ntem_zoning_id"].replace(zones_id_lookup)
-    lookup_data = lookup_data.rename(columns={"ntem_zoning_id": "from_zone_id"})
-    lookup_data["from_zone_type_id"] = zone_type.id
+    lookup_data = lookup_data.rename(
+        columns={"ntem_zoning_id": structure.GeoLookup.from_zone_id.name}
+    )
+    lookup_data[structure.GeoLookup.from_zone_type_id.name] = zone_type.id
 
     for system, id_ in system_id_lookup.items():
         id_lookup = _process_geo_lookup_data(system, id_, lookup_path, session)
 
-        system_lookup = lookup_data.rename(columns={f"{system}_id": "to_zone_id"})
-        system_lookup["to_zone_id"] = system_lookup["to_zone_id"].replace(id_lookup)
-        system_lookup["to_zone_type_id"] = id_
+        system_lookup = lookup_data.rename(
+            columns={f"{system}_id": structure.GeoLookup.to_zone_id.name}
+        )
+        system_lookup[structure.GeoLookup.to_zone_id.name] = system_lookup[
+            structure.GeoLookup.to_zone_id.name
+        ].replace(id_lookup)
+        system_lookup[structure.GeoLookup.to_zone_type_id.name] = id_
         system_lookup = system_lookup[
-            ["from_zone_id", "from_zone_type_id", "to_zone_id", "to_zone_type_id"]
+            [
+                structure.GeoLookup.from_zone_id.name,
+                structure.GeoLookup.from_zone_type_id.name,
+                structure.GeoLookup.to_zone_id.name,
+                structure.GeoLookup.to_zone_type_id.name,
+            ]
         ]
 
         system_lookup.to_sql(
@@ -497,6 +539,10 @@ def _sort_files(
 
                 break
         if "Lookup" in file.stem:
+            if lookup is not None:
+                raise ValueError(
+                    "Multiple lookup files found in the directory. Only one file can be labelled 'Lookup'."
+                )
             lookup = file
 
     if lookup is None:

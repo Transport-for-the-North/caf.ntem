@@ -8,6 +8,7 @@ import logging
 import os
 import pathlib
 import sys
+import warnings
 
 # Third Party
 import caf.toolkit as ctk
@@ -61,7 +62,7 @@ def _create_arg_parser() -> argparse.ArgumentParser:
         suffixes = (
             " - feature not installed.",
             " WARNING - dependencies required for this feature aren't installed,"
-            " install the 'build_db' optional dependencies (caf.base[build_db])."
+            " install the 'build_db' optional dependencies (caf.base[build_db]).",
         )
 
     build_class.add_subcommands(
@@ -88,7 +89,7 @@ def _create_arg_parser() -> argparse.ArgumentParser:
 
 def _parse_args() -> ntem_constants.InputBase:
     with warnings.catch_warnings():
-        warnings.filterwarnings("ignore", category=arguments.TypeAnnotationWarning)
+        warnings.filterwarnings("ignore", category=ctk.arguments.TypeAnnotationWarning)
         parser = _create_arg_parser()
     args = parser.parse_args(None if len(sys.argv[1:]) > 0 else ["-h"])
     try:

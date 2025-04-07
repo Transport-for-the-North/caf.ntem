@@ -518,13 +518,11 @@ class TripEndByDirectionQuery(QueryParams):
         # Pylint does not seem to be able to interpret multiline strings.
         if label is None:
             self._name: str = (
-                f"trip_ends_{trip_type.value}"
-                f"_{scenario.value}_{version.value}"
+                f"trip_ends_{trip_type.value}" f"_{scenario.value}_{version.value}"
             )
         else:
             self._name = (
-                f"trip_ends_{trip_type.value}_{label}"
-                f"_{scenario.value}_{version.value}"
+                f"trip_ends_{trip_type.value}_{label}" f"_{scenario.value}_{version.value}"
             )
 
         super().__init__(
@@ -907,8 +905,7 @@ class TripEndByCarAvailabilityQuery(QueryParams):
         # Pylint does not seem to be able to interpret multiline strings.
         if label is None:
             self._name: str = (
-                f"trip_ends_by_car_availability_{years}"
-                f"_{scenario.value}_{version.value}"
+                f"trip_ends_by_car_availability_{years}" f"_{scenario.value}_{version.value}"
             )
         else:
             self._name = (

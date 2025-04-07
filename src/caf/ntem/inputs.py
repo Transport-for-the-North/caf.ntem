@@ -60,6 +60,9 @@ class QueryArgs(ntem_constants.InputBase):
         if self.trip_end_by_car_availability_runs is not None:
             run_params.extend(self.trip_end_by_car_availability_runs)
 
+        if len(run_params) == 0:
+            raise ValueError("No queries have been defined.")
+
         for run in run_params:
             for query in tqdm.tqdm(run, desc=f"Running {run.label}"):
                 LOG.info("Running query: %s", query.name)

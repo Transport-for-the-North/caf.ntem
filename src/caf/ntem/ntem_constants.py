@@ -51,12 +51,23 @@ class InputBase(ctk.BaseConfig, abc.ABC):
 
     @abc.abstractmethod
     def run(self):
-        """Run the relavent function."""
+        """Run the relevant function."""
 
     @property
     @abc.abstractmethod
     def logging_path(self) -> pathlib.Path:
         """Logging path for the sub command."""
+
+
+class BuildColumnNames(enum.Enum):
+    """Column Names Needed for Building the NTEM database."""
+
+    METADATA_ID = "metadata_id"
+    """Column name for the metadata_id column."""
+    ZONE_SYSTEM_ID = "zone_type_id"
+    """Column name for the zone system id column."""
+    ZONE_ID = "zone_id"
+    """Column name for the zone id column."""
 
 
 class Purpose(enum.IntEnum):
@@ -71,7 +82,7 @@ class Purpose(enum.IntEnum):
     HB_VISITING = 7
     HB_HOLIDAY = 8
     NHB_WORK = 11
-    NHHB_EB = 12
+    NHB_EB = 12
     NHB_EDUCATION = 13
     NHB_SHOPPING = 14
     NHB_PERSONAL = 15
@@ -145,7 +156,7 @@ class TripType(CaseInsensitiveEnum):
 
 
 class ZoningSystems(CaseInsensitiveEnum):
-    """NTEM zoing systems."""
+    """NTEM zoning systems."""
 
     NTEM_ZONE = "ntem_zone"
     AUTHORITY = "authority"
