@@ -184,9 +184,8 @@ def _access_to_df(
         The entire table as a pandas DataFrame.
     """
     engine = sqlalchemy.create_engine(ACCESS_CONNECTION_STRING.format(path.resolve()))
-    query = sqlalchemy.select(sqlalchemy.text(table_name))
 
-    df = pd.read_sql(query, engine)
+    df = pd.read_sql(table_name, engine)
     if substitute is not None:
         try:
             df = df.rename(columns=substitute).loc[:, substitute.values()]
@@ -420,6 +419,7 @@ def create_geo_lookup_table(
     session.add(region_type)
 
     session.flush()
+    session.expunge_all()
 
     zones_id_lookup = _process_geo_lookup_data(
         "ntem_zoning", zone_type.id, lookup_path, session.connection()
@@ -497,8 +497,6 @@ def _process_geo_lookup_data(
         if_exists="append",
         index=False,
     )
-
-    connection.commit()
 
     id_lookup = pd.read_sql(
         sqlalchemy.select(structure.Zones).where(structure.Zones.zone_type_id == system_id),

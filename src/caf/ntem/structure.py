@@ -1,4 +1,4 @@
-"""Defines the stuctures of the database tables."""
+"""Defines the structures of the database tables."""
 
 from __future__ import annotations
 

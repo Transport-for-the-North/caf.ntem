@@ -4,7 +4,7 @@ from __future__ import annotations
 
 # Built-Ins
 import abc
-import collections.abc  # for some reason pylint does not like importing collections and calling collections.abc.Collection
+import collections.abc
 import logging
 import warnings
 from typing import Callable, Iterable
@@ -199,19 +199,19 @@ class PlanningQuery(QueryParams):
         Scenario to provide data.
     output_zoning : ntem_constants.ZoningSystems, optional
         Zoning system to output data in, NTEM zoning is default.
-    version : ntem_constants.Versions, optional
+    version : ntem_constants.Versions
         Version of NTEM data to use, version 8.0 by default
     filter_zoning_system : ntem_constants.ZoningSystems | None, optional
         Zoning system to filter by, if None no spatial filter is performed.
     filter_zone_names : list[str] | None, optional
         Zones to filter for, if None no spatial filter is performed.
-    residential: bool, optional
+    residential: bool
         Whether to include residential data in the output data set.
         True by default.
-    employment: bool, optional
+    employment: bool
         Whether to include employment data in the output data set.
         True by default.
-    household: bool, optional
+    household: bool
         Whether to include household data in the output data set.
         True by default.
     """
@@ -602,12 +602,10 @@ class TripEndByDirectionQuery(QueryParams):
 
         # Pylint does not seem to be able to interpret multiline strings.
         if label is None:
-            self._name: str = (
-                f"trip_ends_{trip_type.value}" f"_{scenario.value}_{version.value}"
-            )
+            self._name: str = f"trip_ends_{trip_type.value}_{scenario.value}_{version.value}"
         else:
             self._name = (
-                f"trip_ends_{trip_type.value}_{label}" f"_{scenario.value}_{version.value}"
+                f"trip_ends_{trip_type.value}_{label}_{scenario.value}_{version.value}"
             )
 
         super().__init__(
@@ -820,7 +818,7 @@ class TripEndByDirectionQuery(QueryParams):
         years: Iterable[int],
     ) -> pd.DataFrame:
         # TODO(KF) tidy/split this up to reduce number of branches
-        LOG.debug("Building trip end query for year %s", years)
+        LOG.debug("Building trip end by direction query for year %s", years)
         select_cols = [
             structure.TripType.name.label("trip_type"),
             structure.TripEndDataByDirection.time_period,
@@ -1100,15 +1098,13 @@ class TripEndByCarAvailabilityQuery(QueryParams):
 
         if replace_ids:
 
-            replacements["car_availability_type"] = zones_lookup = (
-                db_handler.query_to_dataframe(
-                    sqlalchemy.select(
-                        structure.CarAvailabilityTypes.id.label("id"),
-                        structure.CarAvailabilityTypes.name.label("name"),
-                    ),
-                    index_columns=["id"],
-                )["name"].to_dict()
-            )
+            replacements["car_availability_type"] = db_handler.query_to_dataframe(
+                sqlalchemy.select(
+                    structure.CarAvailabilityTypes.id.label("id"),
+                    structure.CarAvailabilityTypes.name.label("name"),
+                ),
+                index_columns=["id"],
+            )["name"].to_dict()
 
             if not self._aggregate_purpose:
                 replacements["purpose"] = db_handler.query_to_dataframe(
