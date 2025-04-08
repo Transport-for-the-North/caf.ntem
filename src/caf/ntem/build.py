@@ -9,7 +9,7 @@ import logging
 import pathlib
 import re
 import sqlite3
-from typing import Iterable, NamedTuple
+from typing import Iterable, NamedTuple, Optional
 
 # Third Party
 import caf.toolkit as ctk
@@ -146,7 +146,7 @@ class BuildArgs(ntem_constants.InputBase):
     )
     """Directory containing NTEM MS Access files"""
 
-    scenarios: list[ntem_constants.Scenarios] | None = pydantic.Field(
+    scenarios: Optional[list[ntem_constants.Scenarios]] = pydantic.Field(
         default=None,
         description="Scenarios to input into the database, valid scenarios are: "
         + ", ".join(i.value for i in ntem_constants.Scenarios),
@@ -422,7 +422,7 @@ def create_geo_lookup_table(
     session.flush()
 
     zones_id_lookup = _process_geo_lookup_data(
-        "ntem_zoning", zone_type.id, lookup_path, session
+        "ntem_zoning", zone_type.id, lookup_path, session.connection()
     )
 
     system_id_lookup: dict[str, int] = {
@@ -444,7 +444,7 @@ def create_geo_lookup_table(
     lookup_data[structure.GeoLookup.from_zone_type_id.name] = zone_type.id
 
     for system, id_ in system_id_lookup.items():
-        id_lookup = _process_geo_lookup_data(system, id_, lookup_path, session)
+        id_lookup = _process_geo_lookup_data(system, id_, lookup_path, session.connection())
 
         system_lookup = lookup_data.rename(
             columns={f"{system}_id": structure.GeoLookup.to_zone_id.name}
@@ -473,7 +473,7 @@ def create_geo_lookup_table(
 
 
 def _process_geo_lookup_data(
-    system: str, system_id: int, lookup_path: pathlib.Path, session: orm.Session
+    system: str, system_id: int, lookup_path: pathlib.Path, connection: sqlalchemy.Connection
 ) -> dict[int, int]:
     """Read zoning lookups and add data to Zones table. Returns NTEM -> db conversion."""
     # need to pass the session since we query data immediately after writing so we need to flush
@@ -493,16 +493,16 @@ def _process_geo_lookup_data(
 
     system_data[write_columns].to_sql(
         structure.Zones.__tablename__,
-        session.connection(),
+        connection,
         if_exists="append",
         index=False,
     )
 
-    session.flush()
+    connection.commit()
 
     id_lookup = pd.read_sql(
         sqlalchemy.select(structure.Zones).where(structure.Zones.zone_type_id == system_id),
-        session.connection(),
+        connection,
     )
     id_lookup = id_lookup.merge(
         system_data[["ntem_zoning_id", join_col]],
