@@ -25,7 +25,7 @@ def _linear_interpolate(func: Callable[..., pd.DataFrame]) -> Callable[..., pd.D
 
     def wrapper_func(*args, years: collections.abc.Collection[int], **kwargs) -> pd.DataFrame:
         query_years: set[int] = set()
-        interpolations: dict[int, tuple[int, int] | None] = {}
+        interpolations: dict[int, tuple[int, int]] = {}
 
         for y in years:
 

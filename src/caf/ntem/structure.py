@@ -18,11 +18,11 @@ from sqlalchemy import orm
 # pylint: disable = too-few-public-methods
 
 
-def connection_string(path: pathlib.Path, driver_name: str = "sqlite") -> str:
+def connection_string(path: pathlib.Path, driver_name: str = "sqlite") -> sqlalchemy.URL:
     """Create a connection string to the database."""
     return sqlalchemy.URL.create(
         drivername=driver_name,
-        database=path.resolve(),
+        database=str(path.resolve()),
     )
 
 

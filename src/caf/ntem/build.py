@@ -184,7 +184,7 @@ def _access_to_df(
         The entire table as a pandas DataFrame.
     """
     engine = sqlalchemy.create_engine(ACCESS_CONNECTION_STRING.format(path.resolve()))
-    query = sqlalchemy.select(table_name)
+    query = sqlalchemy.select(sqlalchemy.text(table_name))
 
     df = pd.read_sql(query, engine)
     if substitute is not None:
