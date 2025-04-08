@@ -207,7 +207,7 @@ def process_scenario(
     """Process data for a scenario and version and insert in into the database.
 
     Parameters
-    -----------
+    ----------
     connection : sqlalchemy.Connection
         The connection to the database to insert into.
     label : FileType

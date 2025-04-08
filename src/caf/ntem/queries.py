@@ -88,6 +88,7 @@ def linear_interpolation_calculation(
 
     Linear interpolation = ((output_year - lower_year) *
         ((upper_val - lower_val) / (upper_year - lower_year)) + lower_val)
+
     Parameters
     ----------
     data : pd.DataFrame
@@ -644,6 +645,7 @@ class TripEndByDirectionQuery(QueryParams):
         """Query NTEM database for Trip End by Direction data using parameters defined on initialisation.
 
         Note the outputs are total time period e.g AM is 3hr 7AM-10AM.
+
         Parameters
         ----------
         db_handler : structure.DataBaseHandler
@@ -671,6 +673,7 @@ class TripEndByDirectionQuery(QueryParams):
         """Produce Dvectors containing trip end by direction data.
 
         Note the outputs are total time period e.g AM is 3hr 7AM-10AM.
+
         Parameters
         ----------
         db_handler : structure.DataBaseHandler
@@ -1044,6 +1047,7 @@ class TripEndByCarAvailabilityQuery(QueryParams):
         """Query NTEM database for Trip End by Car Availability data using parameters defined on initialisation.
 
         Output values are weekly total trips.
+
         Parameters
         ----------
         db_handler : structure.DataBaseHandler
