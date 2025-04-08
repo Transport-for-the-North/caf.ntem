@@ -23,7 +23,7 @@ LOG = logging.getLogger(__name__)
 def _linear_interpolate(func: Callable[..., pd.DataFrame]) -> Callable[..., pd.DataFrame]:
     """Interpolates between years for the given function."""
 
-    def wrapper_func(*args, years: collections.abc.Collection[int], **kwargs):
+    def wrapper_func(*args, years: collections.abc.Collection[int], **kwargs) -> pd.DataFrame:
         query_years: set[int] = set()
         interpolations: dict[int, tuple[int, int] | None] = {}
 
@@ -64,16 +64,10 @@ def _linear_interpolate(func: Callable[..., pd.DataFrame]) -> Callable[..., pd.D
                     output_stack.append(query_out.xs(y, level="year", drop_level=False))
                     continue
 
-                # Linear interpolation = (year - year_0) * ((value_1 - value_0) / (year_1 - year_0)) + value_0
                 lower, upper = interpolations[y]
-                upper_data = query_out.xs(upper, level="year")
-                lower_data = query_out.xs(lower, level="year")
-                interp = ((upper_data - lower_data) / (upper - lower)) * (
-                    y - lower
-                ) + lower_data
-                interp["year"] = y
-                interp = interp.set_index("year", append=True)
-                output_stack.append(interp)
+                output_stack.append(
+                    linear_interpolation_calculation(query_out, y, upper, lower)
+                )
 
             return pd.concat(output_stack)
 
@@ -85,6 +79,52 @@ def _linear_interpolate(func: Callable[..., pd.DataFrame]) -> Callable[..., pd.D
             ) from e
 
     return wrapper_func
+
+
+def linear_interpolation_calculation(
+    data: pd.DataFrame, output_year: int, upper_year: int, lower_year: int
+) -> pd.DataFrame:
+    """Perform linear interpolation between two years to produce a dataset for output year.
+
+    Linear interpolation = ((output_year - lower_year) *
+        ((upper_val - lower_val) / (upper_year - lower_year)) + lower_val)
+    Parameters
+    ----------
+    data : pd.DataFrame
+        Dataframe to perform interpolation on.
+        Should have segmentations as multi-indices, including 'year' (int)
+        as one of the levels. 'year' must contain both `upper_year` and `lower_year`.
+    output_year : int
+        Output year to produce data, should be between upper_year and lower_year.
+    upper_year : int
+        year that exists in the data that is after output_year.
+    lower_year : int
+        year that exists in the data that is before output_year.
+
+    Returns
+    -------
+    pd.DataFrame
+        Linearly interpolated data for the output year.
+    """
+    if upper_year < lower_year:
+        raise ValueError("upper_year must be greater than lower_year")
+    if upper_year < output_year or lower_year > output_year:
+        raise ValueError("output_year must be between upper_year and lower_year")
+
+    upper_data = data.xs(upper_year, level="year")
+    lower_data = data.xs(lower_year, level="year")
+
+    if len(upper_data) == 0 or len(lower_data) == 0:
+        raise ValueError("No data for upper and/or lower year")
+    if not upper_data.index.equal_levels(lower_data.index):
+        raise KeyError("Data for upper and lower year do not have the same index levels")
+
+    interp = ((upper_data - lower_data) / (upper_year - lower_year)) * (
+        output_year - lower_year
+    ) + lower_data
+    interp["year"] = output_year
+    interp = interp.set_index("year", append=True)
+    return interp
 
 
 class QueryParams(abc.ABC):
@@ -99,7 +139,7 @@ class QueryParams(abc.ABC):
         filter_zoning_system: ntem_constants.ZoningSystems | None = None,
         filter_zone_names: list[str] | None = None,
     ):
-        """Initilise QueryParams.
+        """Initialise QueryParams.
 
         Parameters
         ----------
@@ -128,7 +168,7 @@ class QueryParams(abc.ABC):
 
     @abc.abstractmethod
     def query(self, db_handler: structure.DataBaseHandler) -> pd.DataFrame:
-        """Query NTEM database using parameters defined on initilisation.
+        """Query NTEM database using parameters defined on initialisation.
 
         Parameters
         ----------
@@ -207,7 +247,7 @@ class PlanningQuery(QueryParams):
         self._household: bool = household
 
     def query(self, db_handler: structure.DataBaseHandler) -> pd.DataFrame:
-        """Query NTEM database for Planning data using parameters defined on initilisation.
+        """Query NTEM database for Planning data using parameters defined on initialisation.
 
         Parameters
         ----------
@@ -368,7 +408,7 @@ class CarOwnershipQuery(QueryParams):
         )
 
     def query(self, db_handler: structure.DataBaseHandler) -> pd.DataFrame:
-        """Query NTEM database for Car Ownership data using parameters defined on initilisation.
+        """Query NTEM database for Car Ownership data using parameters defined on initialisation.
 
         Parameters
         ----------
@@ -523,7 +563,7 @@ class TripEndByDirectionQuery(QueryParams):
     filter_zone_names : list[str] | None, optional
         Zones to filter for, if None no spatial filter is performed.
     trip_type: ntem_constants.TripType, optional
-        The trip type to retreive.
+        The trip type to retrieve.
     purpose_filter: list[ntem_constants.Purpose] | None, optional
         The purposes to filter the data by if None, no filter is performed.
     aggregate_purpose: bool
@@ -531,7 +571,7 @@ class TripEndByDirectionQuery(QueryParams):
     mode_filter: list[ntem_constants.Mode] | None = None,
         The modes to filter the data by if None, no filter is performed.
     aggregate_mode: bool = True,
-        Whether to aggreagte mode when retrieving data.
+        Whether to aggregate mode when retrieving data.
     time_period_filter: list[ntem_constants.TimePeriod] | None = None,
         The time periods to filter the data by if None, no filter is performed.
     output_names: bool = True,
@@ -601,7 +641,7 @@ class TripEndByDirectionQuery(QueryParams):
         return self._name
 
     def query(self, db_handler: structure.DataBaseHandler) -> pd.DataFrame:
-        """Query NTEM database for Trip End by Direction data using parameters defined on initilisation.
+        """Query NTEM database for Trip End by Direction data using parameters defined on initialisation.
 
         Note the outputs are total time period e.g AM is 3hr 7AM-10AM.
         Parameters
@@ -932,7 +972,7 @@ class TripEndByCarAvailabilityQuery(QueryParams):
     filter_zone_names : list[str] | None, optional
         Zones to filter for, if None no spatial filter is performed.
     trip_type: ntem_constants.TripType, optional
-        The trip type to retreive.
+        The trip type to retrieve.
     purpose_filter: list[ntem_constants.Purpose] | None, optional
         The purposes to filter the data by if None, no filter is performed.
     aggregate_purpose: bool
@@ -940,7 +980,7 @@ class TripEndByCarAvailabilityQuery(QueryParams):
     mode_filter: list[ntem_constants.Mode] | None = None,
         The modes to filter the data by if None, no filter is performed.
     aggregate_mode: bool = True,
-        Whether to aggreagte mode when retrieving data.
+        Whether to aggregate mode when retrieving data.
     time_period_filter: list[ntem_constants.TimePeriod] | None = None,
         The time periods to filter the data by if None, no filter is performed.
     output_names: bool = True,
@@ -1001,7 +1041,7 @@ class TripEndByCarAvailabilityQuery(QueryParams):
         return self._name
 
     def query(self, db_handler: structure.DataBaseHandler) -> pd.DataFrame:
-        """Query NTEM database for Trip End by Car Availability data using parameters defined on initilisation.
+        """Query NTEM database for Trip End by Car Availability data using parameters defined on initialisation.
 
         Output values are weekly total trips.
         Parameters

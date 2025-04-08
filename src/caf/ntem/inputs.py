@@ -191,7 +191,7 @@ class TripEndByCarAvailabilityRunParams(RunParams):
     """Whether to aggregate modes."""
 
     def __iter__(self) -> Generator[queries.TripEndByCarAvailabilityQuery, None, None]:
-        """Iterate through trip end by car availabililty queries, split by scenario.
+        """Iterate through trip end by car availability queries, split by scenario.
 
         Yields
         ------
