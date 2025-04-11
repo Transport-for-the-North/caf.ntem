@@ -135,7 +135,7 @@ class ZoneType(Base):
     """Zone system table."""
 
     __tablename__ = "zone_type_list"
-    id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
+    id: orm.Mapped[int] = orm.mapped_column(primary_key=True, autoincrement=True)
     name: orm.Mapped[str]
     source: orm.Mapped[str]
     version: orm.Mapped[str]
@@ -146,7 +146,9 @@ class Zones(Base):
 
     __tablename__ = "zones"
     id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
-    zone_type_id: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(ZoneType.id))
+    zone_type_id: orm.Mapped[int] = orm.mapped_column(
+        sqlalchemy.ForeignKey(ZoneType.id), primary_key=True
+    )
     name: orm.Mapped[str]
     source_id_or_code: orm.Mapped[Optional[str]]
 
@@ -156,13 +158,21 @@ class GeoLookup(Base):
 
     __tablename__ = "geo_lookup"
     id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
-    from_zone_id: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(Zones.id))
-    from_zone_type_id: orm.Mapped[str] = orm.mapped_column(
-        sqlalchemy.ForeignKey(Zones.zone_type_id)
-    )
-    to_zone_id: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(Zones.id))
-    to_zone_type_id: orm.Mapped[str] = orm.mapped_column(
-        sqlalchemy.ForeignKey(Zones.zone_type_id)
+    from_zone_id: orm.Mapped[int]
+    from_zone_type_id: orm.Mapped[str]
+    to_zone_id: orm.Mapped[int]
+    to_zone_type_id: orm.Mapped[str]
+
+    __table_args__ = (
+        # defining composite foreign key constraints - have to defined in table args
+        # because you cannot defined composite foreign key constraints on each mapped_column
+        sqlalchemy.ForeignKeyConstraint(
+            ["from_zone_id", "from_zone_type_id"], [Zones.id, Zones.zone_type_id]
+        ),
+        sqlalchemy.ForeignKeyConstraint(
+            ["to_zone_id", "to_zone_type_id"], [Zones.id, Zones.zone_type_id]
+        ),
+        {},
     )
 
 
@@ -172,7 +182,7 @@ class TripEndDataByCarAvailability(Base):
     __tablename__ = "trip_end_data_by_car_availability"
     id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
     metadata_id: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(MetaData.id))
-    zone_id: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(Zones.id))
+    zone_id: orm.Mapped[int]
     zone_type_id: orm.Mapped[int]
     purpose: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(PurposeTypes.id))
     mode: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(ModeTypes.id))
@@ -181,6 +191,14 @@ class TripEndDataByCarAvailability(Base):
     )
     year: orm.Mapped[int]
     value: orm.Mapped[float]
+    __table_args__ = (
+        # defining composite foreign key constraints - have to defined in table args
+        # because you cannot defined composite foreign key constraints on each mapped_column
+        sqlalchemy.ForeignKeyConstraint(
+            ["zone_id", "zone_type_id"], [Zones.id, Zones.zone_type_id]
+        ),
+        {},
+    )
 
 
 class TripEndDataByDirection(Base):
@@ -189,7 +207,7 @@ class TripEndDataByDirection(Base):
     __tablename__ = "trip_end_data_by_direction"
     id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
     metadata_id: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(MetaData.id))
-    zone_id: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(Zones.id))
+    zone_id: orm.Mapped[int]
     zone_type_id: orm.Mapped[int]
     purpose: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(PurposeTypes.id))
     mode: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(ModeTypes.id))
@@ -197,6 +215,14 @@ class TripEndDataByDirection(Base):
     trip_type: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(TripType.id))
     year: orm.Mapped[int]
     value: orm.Mapped[float]
+    __table_args__ = (
+        # defining composite foreign key constraints - have to defined in table args
+        # because you cannot defined composite foreign key constraints on each mapped_column
+        sqlalchemy.ForeignKeyConstraint(
+            ["zone_id", "zone_type_id"], [Zones.id, Zones.zone_type_id]
+        ),
+        {},
+    )
 
 
 class CarOwnership(Base):
@@ -205,13 +231,21 @@ class CarOwnership(Base):
     __tablename__ = "car_ownership"
     id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
     metadata_id: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(MetaData.id))
-    zone_id: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(Zones.id))
+    zone_id: orm.Mapped[int]
     zone_type_id: orm.Mapped[int]
     car_ownership_type: orm.Mapped[int] = orm.mapped_column(
         sqlalchemy.ForeignKey(CarOwnershipTypes.id)
     )
     year: orm.Mapped[int]
     value: orm.Mapped[float]
+    __table_args__ = (
+        # defining composite foreign key constraints - have to defined in table args
+        # because you cannot defined composite foreign key constraints on each mapped_column
+        sqlalchemy.ForeignKeyConstraint(
+            ["zone_id", "zone_type_id"], [Zones.id, Zones.zone_type_id]
+        ),
+        {},
+    )
 
 
 class Planning(Base):
@@ -220,13 +254,21 @@ class Planning(Base):
     __tablename__ = "planning"
     id: orm.Mapped[int] = orm.mapped_column(primary_key=True)
     metadata_id: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(MetaData.id))
-    zone_id: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(Zones.id))
+    zone_id: orm.Mapped[int]
     zone_type_id: orm.Mapped[int]
     planning_data_type: orm.Mapped[int] = orm.mapped_column(
         sqlalchemy.ForeignKey(PlanningDataTypes.id)
     )
     year: orm.Mapped[int]
     value: orm.Mapped[float]
+    __table_args__ = (
+        # defining composite foreign key constraints - have to defined in table args
+        # because you cannot defined composite foreign key constraints on each mapped_column
+        sqlalchemy.ForeignKeyConstraint(
+            ["zone_id", "zone_type_id"], [Zones.id, Zones.zone_type_id]
+        ),
+        {},
+    )
 
 
 @dataclasses.dataclass
@@ -259,9 +301,9 @@ DB_TO_ACCESS_TABLE_LOOKUP: dict[str, str] = {
     TripType.__tablename__: "NtemTripTypeLookup",
     PlanningDataTypes.__tablename__: "tblLookUpPlanning83",
     Planning.__tablename__: "Planning",
-    "region": "tblLookUpRegion",
-    "county": "tblLookUpCounty83",
-    "authority": "tblLookUpAuthority82",
+    "region": "tblLookupRegion",
+    "county": "tblLookupCounty83",
+    "authority": "tblLookupAuthority82",
     "ntem_zoning": "tblLookupGeo83",
 }
 """Lookup between database tables and MS Access table names."""

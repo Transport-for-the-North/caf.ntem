@@ -35,9 +35,9 @@ ACCESS_CONNECTION_STRING = (
 
 METADATA_ID_COLUMN = ntem_constants.BuildColumnNames.METADATA_ID.value
 """Name of the metadata ID column in the database."""
-ZONE_SYSTEM_ID_COLUMN = ntem_constants.BuildColumnNames.ZONE_SYSTEM_ID
+ZONE_SYSTEM_ID_COLUMN = ntem_constants.BuildColumnNames.ZONE_SYSTEM_ID.value
 """Name of the zone system ID column in the database."""
-ZONE_ID_COLUMN = ntem_constants.BuildColumnNames.ZONE_ID
+ZONE_ID_COLUMN = ntem_constants.BuildColumnNames.ZONE_ID.value
 """Name of the zone ID column in the database."""
 
 
@@ -445,7 +445,7 @@ def create_geo_lookup_table(
 
     for system, id_ in system_id_lookup.items():
         id_lookup = _process_geo_lookup_data(system, id_, lookup_path, session.connection())
-
+        session.flush()
         system_lookup = lookup_data.rename(
             columns={f"{system}_id": structure.GeoLookup.to_zone_id.name}
         )
@@ -477,6 +477,10 @@ def _process_geo_lookup_data(
 ) -> dict[int, int]:
     """Read zoning lookups and add data to Zones table. Returns NTEM -> db conversion."""
     # need to pass the session since we query data immediately after writing so we need to flush
+    max_id = connection.execute(sqlalchemy.func.max(structure.Zones.id)).scalar()
+    if max_id is None:
+        max_id = 0
+
     system_data = _access_to_df(
         lookup_path,
         structure.DB_TO_ACCESS_TABLE_LOOKUP[system],
@@ -484,11 +488,25 @@ def _process_geo_lookup_data(
     )
     system_data["zone_type_id"] = system_id
 
+    if system_data["ntem_zoning_id"].min() == 0:
+        system_data["ntem_zoning_id"] += 1
+
+    system_data["id"] = system_data["ntem_zoning_id"] + 1
+
     if "source_id_or_code" in system_data.columns:
-        write_columns = ["zone_type_id", "name", "source_id_or_code"]
+        write_columns = [
+            structure.Zones.id.name,
+            structure.Zones.zone_type_id.name,
+            structure.Zones.name.name,
+            structure.Zones.source_id_or_code.name,
+        ]
         join_col = "source_id_or_code"
     else:
-        write_columns = ["zone_type_id", "name"]
+        write_columns = [
+            structure.Zones.id.name,
+            structure.Zones.zone_type_id.name,
+            structure.Zones.name.name,
+        ]
         join_col = "name"
 
     system_data[write_columns].to_sql(
@@ -498,20 +516,8 @@ def _process_geo_lookup_data(
         index=False,
     )
 
-    id_lookup = pd.read_sql(
-        sqlalchemy.select(structure.Zones).where(structure.Zones.zone_type_id == system_id),
-        connection,
-    )
-    id_lookup = id_lookup.merge(
-        system_data[["ntem_zoning_id", join_col]],
-        how="left",
-        on=join_col,
-        validate="one_to_one",
-    )
-
-    id_lookup = id_lookup.rename(columns={"ntem_zoning_id": f"{system}_id"})
-
-    return id_lookup.set_index(f"{system}_id")["id"].to_dict()
+    id_lookup = system_data[["ntem_zoning_id", "id"]]
+    return id_lookup.set_index(f"ntem_zoning_id")["id"].to_dict()
 
 
 def _sort_files(
@@ -525,7 +531,7 @@ def _sort_files(
         run_scenarios = ntem_constants.Scenarios.__members__.values()
     for file in files:
         for scenario in run_scenarios:
-            if scenario.value in file.stem:
+            if scenario.value.lower() in file.stem.lower():
                 version_digits = re.search(r"_(\d)(\d)_", file.stem)
                 if version_digits is None:
                     raise ValueError(
