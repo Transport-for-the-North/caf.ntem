@@ -338,8 +338,16 @@ def build_db(
 
         for label, paths in data_paths.items():
             LOG.info("Processing %s - Version:%s", label.scenario.value, label.version)
+            # TODO(kf): Once we start retrieving IDs from DB in queries module change metadata
+            # back to autoincremented ids.
+            metadata_id = ntem_constants.Scenarios(label.scenario.value).id(
+                ntem_constants.Versions(label.version)
+            )
             metadata = structure.MetaData(
-                scenario=label.scenario.value, version=label.version, share_type_id=1
+                id=metadata_id,
+                scenario=label.scenario.value,
+                version=label.version,
+                share_type_id=1,
             )
             session.add(metadata)
             # We need to flush so we can access the metadata id below

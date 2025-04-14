@@ -117,8 +117,14 @@ def linear_interpolation_calculation(
 
     if len(upper_data) == 0 or len(lower_data) == 0:
         raise ValueError("No data for upper and/or lower year")
-    if not upper_data.index.equal_levels(lower_data.index):
-        raise KeyError("Data for upper and lower year do not have the same index levels")
+
+    if isinstance(upper_data.index, pd.MultiIndex):
+
+        if not upper_data.index.equal_levels(lower_data.index):
+            raise KeyError("Data for upper and lower year do not have the same index levels")
+    else:
+        if not upper_data.index.equals(lower_data.index):
+            raise KeyError("Data for upper and lower year do not have the same index levels")
 
     interp = ((upper_data - lower_data) / (upper_year - lower_year)) * (
         output_year - lower_year
@@ -260,7 +266,7 @@ class PlanningQuery(QueryParams):
         pd.DataFrame
         Planning data with columns "zone", "year", "data_type", "value"
         """
-
+        # db_handler.query_to_dataframe(sqlalchemy.Select(structure.MetaData.id).where(structure.MetaData.scenario==ntem_constants.Scenarios.CORE.value.lower()))
         data = self._data_query(
             db_handler=db_handler,
             years=self._years,
@@ -836,9 +842,12 @@ class TripEndByDirectionQuery(QueryParams):
             )
 
         else:
-            sqlalchemy.func.sum(
-                structure.TripEndDataByDirection.value / structure.TimePeriodTypes.divide_by
-            ).label("value")
+            select_cols.append(
+                sqlalchemy.func.sum(
+                    structure.TripEndDataByDirection.value
+                    / structure.TimePeriodTypes.divide_by
+                ).label("value")
+            )
 
         index_cols = [
             "zone",

@@ -219,4 +219,4 @@ class Scenarios(CaseInsensitiveEnum):
 class Versions(enum.Enum):
     """NTEM versions."""
 
-    EIGHT = 8.0
+    EIGHT = "8.0"
