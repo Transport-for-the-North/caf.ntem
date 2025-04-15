@@ -637,7 +637,7 @@ class TripEndByDirectionQuery(QueryParams):
         if mode_filter is not None:
             self._mode_filter = [m.id() for m in mode_filter]
 
-        if self._time_period_filter is not None:
+        if time_period_filter is not None:
             self._time_period_filter = [tp.id() for tp in time_period_filter]
 
     @property
@@ -771,11 +771,11 @@ class TripEndByDirectionQuery(QueryParams):
         )
 
         if not zones_lookup["name"].isna().any():
+            replacements["zone"] = zones_lookup["name"].to_dict()
+        else:
             warnings.warn(
                 "The zone system you have chosen to output does not have a code column. Outputting zone name instead"
             )
-            replacements["zone"] = zones_lookup["name"].to_dict()
-        else:
             replacements["zone"] = db_handler.query_to_dataframe(
                 sqlalchemy.select(
                     structure.Zones.id.label("id"), structure.Zones.name.label("name")
@@ -1094,10 +1094,10 @@ class TripEndByCarAvailabilityQuery(QueryParams):
 
         if not zones_lookup["name"].isna().any():
             replacements["zone"] = zones_lookup["name"].to_dict()
+        else:
             warnings.warn(
                 "The zone system you have chosen to output does not have a code column. Outputting zone name instead"
             )
-        else:
             replacements["zone"] = db_handler.query_to_dataframe(
                 sqlalchemy.select(
                     structure.Zones.id.label("id"), structure.Zones.name.label("name")
@@ -1232,14 +1232,14 @@ class TripEndByCarAvailabilityQuery(QueryParams):
                 query.join(
                     structure.GeoLookup,
                     structure.GeoLookup.from_zone_id
-                    == structure.TripEndDataByDirection.zone_id,
+                    == structure.TripEndDataByCarAvailability.zone_id,
                     isouter=True,
                 )
                 .where(
                     base_filter
                     & (
                         structure.GeoLookup.from_zone_id
-                        == structure.TripEndDataByDirection.zone_id
+                        == structure.TripEndDataByCarAvailability.zone_id
                     )
                     & (
                         structure.GeoLookup.from_zone_type_id

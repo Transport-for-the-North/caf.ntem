@@ -499,7 +499,7 @@ def _process_geo_lookup_data(
     if system_data["ntem_zoning_id"].min() == 0:
         system_data["ntem_zoning_id"] += 1
 
-    system_data["id"] = system_data["ntem_zoning_id"] + 1
+    system_data["id"] = system_data["ntem_zoning_id"] + max_id
 
     if "source_id_or_code" in system_data.columns:
         write_columns = [

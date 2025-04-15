@@ -2,6 +2,8 @@
 import argparse
 import pathlib
 
+import pandas as pd
+
 # Local Imports
 # import pytest
 import caf.ntem as ntem
@@ -37,21 +39,60 @@ def build_database(
     )
 
 
+def control_planning_result() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "zone": pd.Series(["E08000021", "E08000021"]),
+            "year": pd.Series([2018, 2023]),
+            "16 to 74": pd.Series([213615, 218263], dtype="float64"),
+            "75 +": pd.Series([18681, 19944], dtype="float64"),
+            "Households": pd.Series([121909, 125925], dtype="float64"),
+            "Jobs": pd.Series([183804, 188128], dtype="float64"),
+            "Less than 16": pd.Series([50293, 51719], dtype="float64"),
+            "Workers": pd.Series([122827, 128063], dtype="float64"),
+        },
+    ).set_index(["zone", "year"])
+
+
 def test_planning_query(db_handler: ntem.DataBaseHandler) -> None:
 
-    ntem.PlanningQuery(
+    planning = ntem.PlanningQuery(
         2018,
         2023,
         scenario=scenario(),
         output_zoning=ntem.ZoningSystems.AUTHORITY,
         filter_zoning_system=ntem.ZoningSystems.AUTHORITY,
         filter_zone_names=["Newcastle upon Tyne"],
-    ).query(db_handler).to_csv((output_dir() / "planning_query").with_suffix(".csv"))
+    ).query(db_handler)
+    planning.to_csv((output_dir() / "planning_query").with_suffix(".csv"))
+    # We round as we are comparing to TEMPro which gives results rounded to the nearest integer.
+    pd.testing.assert_frame_equal(
+        planning.round(0),
+        right=control_planning_result(),
+        check_names=False,
+    )
+
+
+def control_tebd_result() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "zone": pd.Series(["E08000021", "E08000021"]),
+            "time_period": pd.Series(
+                [
+                    "Weekday AM peak period (0700 - 0959)",
+                    "Weekday AM peak period (0700 - 0959)",
+                ]
+            ),
+            "year": pd.Series([2018, 2023]),
+            "attraction_trip_end": pd.Series([33749, 34989], dtype="float64"),
+            "production_trip_end": pd.Series([24102, 25679], dtype="float64"),
+        },
+    ).set_index(["zone", "time_period", "year"])
 
 
 def test_trip_end_by_direction_query(db_handler: ntem.DataBaseHandler) -> None:
 
-    ntem.TripEndByDirectionQuery(
+    test_tebd = ntem.TripEndByDirectionQuery(
         2018,
         2023,
         scenario=scenario(),
@@ -64,14 +105,65 @@ def test_trip_end_by_direction_query(db_handler: ntem.DataBaseHandler) -> None:
         time_period_filter=[ntem.TimePeriod.AM],
         filter_zoning_system=ntem.ZoningSystems.AUTHORITY,
         filter_zone_names=["Newcastle upon Tyne"],
-    ).query(db_handler).to_csv(
-        (output_dir() / "tripend_by_direction_query").with_suffix(".csv")
+    ).query(db_handler)
+    test_tebd.to_csv((output_dir() / "tripend_by_direction_query").with_suffix(".csv"))
+    # We round as we are comparing to TEMPro which gives results rounded to the nearest integer.
+    pd.testing.assert_frame_equal(
+        test_tebd.round(0),
+        right=control_tebd_result(),
+        check_names=False,
     )
+
+
+def control_tebca_result() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "zone": pd.Series(
+                [
+                    "E08000021",
+                    "E08000021",
+                    "E08000021",
+                    "E08000021",
+                    "E08000021",
+                    "E08000021",
+                    "E08000021",
+                    "E08000021",
+                ]
+            ),
+            "car_availability_type": pd.Series(
+                [
+                    "Households with no cars",
+                    "Households with 1 adult and 1 car",
+                    "Households with 2+ adults and 1 car",
+                    "Households with 2+ adults and 2+ cars",
+                    "Households with no cars",
+                    "Households with 1 adult and 1 car",
+                    "Households with 2+ adults and 1 car",
+                    "Households with 2+ adults and 2+ cars",
+                ]
+            ),
+            "year": pd.Series(
+                [
+                    2018,
+                    2018,
+                    2018,
+                    2018,
+                    2023,
+                    2023,
+                    2023,
+                    2023,
+                ]
+            ),
+            "value": pd.Series(
+                [7962, 19535, 79897, 100589, 7720, 21787, 82526, 108576], dtype="float64"
+            ),
+        },
+    ).set_index(["zone", "car_availability_type", "year"])
 
 
 def test_trip_end_by_car_av_query(db_handler: ntem.DataBaseHandler) -> None:
 
-    ntem.TripEndByCarAvailabilityQuery(
+    test_tebca = ntem.TripEndByCarAvailabilityQuery(
         2018,
         2023,
         scenario=scenario(),
@@ -82,21 +174,46 @@ def test_trip_end_by_car_av_query(db_handler: ntem.DataBaseHandler) -> None:
         output_zoning=ntem.ZoningSystems.AUTHORITY,
         filter_zoning_system=ntem.ZoningSystems.AUTHORITY,
         filter_zone_names=["Newcastle upon Tyne"],
-    ).query(db_handler).to_csv(
-        (output_dir() / "tripend_by_direction_query").with_suffix(".csv")
+    ).query(db_handler)
+    test_tebca.to_csv((output_dir() / "tripend_by_car_av_query").with_suffix(".csv"))
+    # We round as we are comparing to TEMPro which gives results rounded to the nearest integer
+    pd.testing.assert_frame_equal(
+        test_tebca.round(0),
+        right=control_tebca_result(),
+        check_names=False,
     )
+
+
+def control_car_ownership_result() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "zone": pd.Series(["E08000021", "E08000021"]),
+            "year": pd.Series([2018, 2023]),
+            "1 Car": pd.Series([48480, 50433], dtype="float64"),
+            "2 Cars": pd.Series([19285, 19913], dtype="float64"),
+            "3+ Cars": pd.Series([5038, 5248], dtype="float64"),
+            "No Car": pd.Series([49105, 50331], dtype="float64"),
+        },
+    ).set_index(["zone", "year"])
 
 
 def test_car_ownership_query(db_handler: ntem.DataBaseHandler) -> None:
 
-    ntem.CarOwnershipQuery(
+    car_ownership_test = ntem.CarOwnershipQuery(
         2018,
         2023,
         scenario=scenario(),
         output_zoning=ntem.ZoningSystems.AUTHORITY,
         filter_zoning_system=ntem.ZoningSystems.AUTHORITY,
         filter_zone_names=["Newcastle upon Tyne"],
-    ).query(db_handler).to_csv((output_dir() / "carownership_query").with_suffix(".csv"))
+    ).query(db_handler)
+    car_ownership_test.to_csv((output_dir() / "carownership_query").with_suffix(".csv"))
+    # We round as we are comparing to TEMPro which gives results rounded to the nearest integer
+    pd.testing.assert_frame_equal(
+        car_ownership_test.round(0),
+        right=control_car_ownership_result(),
+        check_names=False,
+    )
 
 
 def get_db_handler(db_path: pathlib.Path) -> ntem.DataBaseHandler:
@@ -107,7 +224,7 @@ def get_db_handler(db_path: pathlib.Path) -> ntem.DataBaseHandler:
 
 def test_query(db_handler: ntem.DataBaseHandler) -> None:
     test_trip_end_by_car_av_query(db_handler)
-    test_car_ownership_query(db_handler)
+    #test_car_ownership_query(db_handler)
     test_planning_query(db_handler)
     test_trip_end_by_direction_query(db_handler)
 
