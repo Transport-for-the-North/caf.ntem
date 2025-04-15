@@ -508,14 +508,13 @@ def _process_geo_lookup_data(
             structure.Zones.name.name,
             structure.Zones.source_id_or_code.name,
         ]
-        join_col = "source_id_or_code"
+
     else:
         write_columns = [
             structure.Zones.id.name,
             structure.Zones.zone_type_id.name,
             structure.Zones.name.name,
         ]
-        join_col = "name"
 
     system_data[write_columns].to_sql(
         structure.Zones.__tablename__,
@@ -525,7 +524,7 @@ def _process_geo_lookup_data(
     )
 
     id_lookup = system_data[["ntem_zoning_id", "id"]]
-    return id_lookup.set_index(f"ntem_zoning_id")["id"].to_dict()
+    return id_lookup.set_index("ntem_zoning_id")["id"].to_dict()
 
 
 def _sort_files(
