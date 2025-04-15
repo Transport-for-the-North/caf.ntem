@@ -6,16 +6,10 @@ import pathlib
 
 # Third Party
 import pandas as pd
-import pytest
 
 # Local Imports
 # import pytest
 import caf.ntem as ntem
-
-pytest.skip(
-    "Skipping integration test as this requires windows access drivers",
-    allow_module_level=True,
-)
 
 
 def scenario() -> ntem.Scenarios:
@@ -56,7 +50,7 @@ def control_planning_result() -> pd.DataFrame:
     ).set_index(["zone", "year"])
 
 
-def test_planning_query(db_handler: ntem.DataBaseHandler) -> None:
+def compare_planning_query(db_handler: ntem.DataBaseHandler) -> None:
     """Test for the planning query
 
     Compares 2018 and 2023 planning results and TEMPro
@@ -101,7 +95,7 @@ def control_tebd_result() -> pd.DataFrame:
     ).set_index(["zone", "time_period", "year"])
 
 
-def test_trip_end_by_direction_query(db_handler: ntem.DataBaseHandler) -> None:
+def compare_trip_end_by_direction_query(db_handler: ntem.DataBaseHandler) -> None:
     """Test for the trip end by direction query.
 
     Compares 2018 and 2023 trip end by direction results and TEMPro
@@ -181,7 +175,7 @@ def control_tebca_result() -> pd.DataFrame:
     ).set_index(["zone", "car_availability_type", "year"])
 
 
-def test_trip_end_by_car_av_query(db_handler: ntem.DataBaseHandler) -> None:
+def compare_trip_end_by_car_av_query(db_handler: ntem.DataBaseHandler) -> None:
     """Test for the trip end by car availability query.
 
     Compares 2018 and 2023 trip end by car availability results and TEMPro
@@ -227,7 +221,7 @@ def control_car_ownership_result() -> pd.DataFrame:
     ).set_index(["zone", "year"])
 
 
-def test_car_ownership_query(db_handler: ntem.DataBaseHandler) -> None:
+def compare_car_ownership_query(db_handler: ntem.DataBaseHandler) -> None:
     """Test for the car ownership query.
 
     Compares 2018 and 2023 car ownership results and TEMPro
@@ -257,12 +251,12 @@ def get_db_handler(db_path: pathlib.Path) -> ntem.DataBaseHandler:
     return db_handler
 
 
-def test_query(db_handler: ntem.DataBaseHandler) -> None:
+def integration_test_query(db_handler: ntem.DataBaseHandler) -> None:
     """Test the NTEM queries."""
-    test_trip_end_by_car_av_query(db_handler)
-    test_car_ownership_query(db_handler)
-    test_planning_query(db_handler)
-    test_trip_end_by_direction_query(db_handler)
+    compare_trip_end_by_car_av_query(db_handler)
+    compare_car_ownership_query(db_handler)
+    compare_planning_query(db_handler)
+    compare_trip_end_by_direction_query(db_handler)
 
 
 if __name__ == "__main__":
@@ -326,4 +320,4 @@ if __name__ == "__main__":
             scenarios=[scenario()],
         )
 
-    test_query(get_db_handler(db_path))
+    integration_test_query(get_db_handler(db_path))
