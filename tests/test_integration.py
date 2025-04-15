@@ -1,7 +1,10 @@
+"""Integration test for the build and query functionality of the NTEM package."""
+
 # Built-Ins
 import argparse
 import pathlib
 
+# Third Party
 import pandas as pd
 
 # Local Imports
@@ -10,19 +13,8 @@ import caf.ntem as ntem
 
 
 def scenario() -> ntem.Scenarios:
+    """Scenario to use for testing."""
     return ntem.Scenarios.CORE
-
-
-# @pytest.fixture(name = "access_dir", scope="module")
-def access_dir() -> pathlib.Path:
-    """Fixture to create a temporary directory for testing."""
-    return pathlib.Path(r"G:\raw_data\NTEM_SQLITE\test_data_set")
-
-
-# @pytest.fixture(name = "output_dir", scope="module")
-def output_dir() -> pathlib.Path:
-    """Fixture to create a temporary directory for testing."""
-    return pathlib.Path(r"F:/NTEM_SQLITE_DB/test")
 
 
 def build_database(
@@ -40,6 +32,10 @@ def build_database(
 
 
 def control_planning_result() -> pd.DataFrame:
+    """Control result for the planning query.
+
+    Results from TEMPro for the Newcastle upon Tyne Authority.
+    """
     return pd.DataFrame(
         {
             "zone": pd.Series(["E08000021", "E08000021"]),
@@ -55,7 +51,11 @@ def control_planning_result() -> pd.DataFrame:
 
 
 def test_planning_query(db_handler: ntem.DataBaseHandler) -> None:
+    """Test for the planning query
 
+    Compares 2018 and 2023 planning results and TEMPro
+    data for the Newcastle upon Tyne Authority.
+    """
     planning = ntem.PlanningQuery(
         2018,
         2023,
@@ -64,7 +64,7 @@ def test_planning_query(db_handler: ntem.DataBaseHandler) -> None:
         filter_zoning_system=ntem.ZoningSystems.AUTHORITY,
         filter_zone_names=["Newcastle upon Tyne"],
     ).query(db_handler)
-    planning.to_csv((output_dir() / "planning_query").with_suffix(".csv"))
+
     # We round as we are comparing to TEMPro which gives results rounded to the nearest integer.
     pd.testing.assert_frame_equal(
         planning.round(0),
@@ -74,6 +74,11 @@ def test_planning_query(db_handler: ntem.DataBaseHandler) -> None:
 
 
 def control_tebd_result() -> pd.DataFrame:
+    """Control result for the trip end by direction query.
+
+    Results from TEMPro for the Newcastle upon Tyne Authority for
+    AM, car driver, HB Work in 2018 and 2023.
+    """
     return pd.DataFrame(
         {
             "zone": pd.Series(["E08000021", "E08000021"]),
@@ -91,7 +96,12 @@ def control_tebd_result() -> pd.DataFrame:
 
 
 def test_trip_end_by_direction_query(db_handler: ntem.DataBaseHandler) -> None:
+    """Test for the trip end by direction query.
 
+    Compares 2018 and 2023 trip end by direction results and TEMPro
+    data for the Newcastle upon Tyne Authority for
+    AM, car driver, HB Work.
+    """
     test_tebd = ntem.TripEndByDirectionQuery(
         2018,
         2023,
@@ -106,7 +116,6 @@ def test_trip_end_by_direction_query(db_handler: ntem.DataBaseHandler) -> None:
         filter_zoning_system=ntem.ZoningSystems.AUTHORITY,
         filter_zone_names=["Newcastle upon Tyne"],
     ).query(db_handler)
-    test_tebd.to_csv((output_dir() / "tripend_by_direction_query").with_suffix(".csv"))
     # We round as we are comparing to TEMPro which gives results rounded to the nearest integer.
     pd.testing.assert_frame_equal(
         test_tebd.round(0),
@@ -116,6 +125,11 @@ def test_trip_end_by_direction_query(db_handler: ntem.DataBaseHandler) -> None:
 
 
 def control_tebca_result() -> pd.DataFrame:
+    """Control result for the trip end by car availability query.
+
+    Results from TEMPro for the Newcastle upon Tyne Authority for
+    car driver, HB Work in 2018 and 2023.
+    """
     return pd.DataFrame(
         {
             "zone": pd.Series(
@@ -162,6 +176,11 @@ def control_tebca_result() -> pd.DataFrame:
 
 
 def test_trip_end_by_car_av_query(db_handler: ntem.DataBaseHandler) -> None:
+    """Test for the trip end by car availability query.
+
+    Compares 2018 and 2023 trip end by car availability results and TEMPro
+    data for the Newcastle upon Tyne Authority for car driver, HB Work.
+    """
 
     test_tebca = ntem.TripEndByCarAvailabilityQuery(
         2018,
@@ -175,7 +194,7 @@ def test_trip_end_by_car_av_query(db_handler: ntem.DataBaseHandler) -> None:
         filter_zoning_system=ntem.ZoningSystems.AUTHORITY,
         filter_zone_names=["Newcastle upon Tyne"],
     ).query(db_handler)
-    test_tebca.to_csv((output_dir() / "tripend_by_car_av_query").with_suffix(".csv"))
+
     # We round as we are comparing to TEMPro which gives results rounded to the nearest integer
     pd.testing.assert_frame_equal(
         test_tebca.round(0),
@@ -185,6 +204,11 @@ def test_trip_end_by_car_av_query(db_handler: ntem.DataBaseHandler) -> None:
 
 
 def control_car_ownership_result() -> pd.DataFrame:
+    """Control result for the car ownership query.
+
+    Results from TEMPro for the Newcastle upon Tyne Authority for
+    car ownership in 2018 and 2023.
+    """
     return pd.DataFrame(
         {
             "zone": pd.Series(["E08000021", "E08000021"]),
@@ -198,6 +222,11 @@ def control_car_ownership_result() -> pd.DataFrame:
 
 
 def test_car_ownership_query(db_handler: ntem.DataBaseHandler) -> None:
+    """Test for the car ownership query.
+
+    Compares 2018 and 2023 car ownership results and TEMPro
+    for the Newcastle upon Tyne Authority.
+    """
 
     car_ownership_test = ntem.CarOwnershipQuery(
         2018,
@@ -207,7 +236,7 @@ def test_car_ownership_query(db_handler: ntem.DataBaseHandler) -> None:
         filter_zoning_system=ntem.ZoningSystems.AUTHORITY,
         filter_zone_names=["Newcastle upon Tyne"],
     ).query(db_handler)
-    car_ownership_test.to_csv((output_dir() / "carownership_query").with_suffix(".csv"))
+
     # We round as we are comparing to TEMPro which gives results rounded to the nearest integer
     pd.testing.assert_frame_equal(
         car_ownership_test.round(0),
@@ -217,26 +246,27 @@ def test_car_ownership_query(db_handler: ntem.DataBaseHandler) -> None:
 
 
 def get_db_handler(db_path: pathlib.Path) -> ntem.DataBaseHandler:
-    """Get the database handler."""
+    """Get database handler to use for tests."""
     db_handler = ntem.DataBaseHandler(host=db_path)
     return db_handler
 
 
 def test_query(db_handler: ntem.DataBaseHandler) -> None:
+    """Test the NTEM queries."""
     test_trip_end_by_car_av_query(db_handler)
-    #test_car_ownership_query(db_handler)
+    test_car_ownership_query(db_handler)
     test_planning_query(db_handler)
     test_trip_end_by_direction_query(db_handler)
 
 
 if __name__ == "__main__":
-    # Run the test function
+
     parser = argparse.ArgumentParser(
         prog="NTEM Integration Test",
         description="Performs integration tests on the NTEM package",
     )
     parser.add_argument(
-        "-b", "--build", default="y", help="Whether to test the build process (y/n)"
+        "-b", "--build", action="store_true", help="Whether to test the build process (y/n)"
     )
     parser.add_argument(
         "-adb",
@@ -258,26 +288,25 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
-    build = True
-    if args.build.lower() == "y" or args.build.lower() == "yes":
-        pass
-    elif args.build.lower() == "n" or args.build.lower() == "no":
-        build = False
-    else:
-        raise ValueError("Invalid value for --build. Use 'y' or 'n'.")
+    build = args.build
 
     if args.access_database is not None:
         access_dir_ = pathlib.Path(args.access_database)
     else:
-        access_dir_ = access_dir()
+        if build:
+            raise ValueError("Access database path is required to build the database.")
+    output_dir_: pathlib.Path | None = None
     if args.output_path is not None:
         output_dir_ = pathlib.Path(args.output_path)
-    else:
-        output_dir_ = output_dir()
+
+    db_path: pathlib.Path | None = None
     if args.database is not None and not build:
         db_path = pathlib.Path(args.database)
     else:
-        db_path = output_dir_ / "NTEM.sqlite"
+        if output_dir_ is not None:
+            db_path = output_dir_ / "NTEM.sqlite"
+        else:
+            raise ValueError("Neither output path or database path provided.")
 
     if build:
         # Build the database
