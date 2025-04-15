@@ -163,7 +163,7 @@ class GeoLookup(Base):
     to_zone_id: orm.Mapped[int]
     to_zone_type_id: orm.Mapped[str]
 
-    __table_args__ = (# type: ignore[var-annotated]
+    __table_args__ = (  # type: ignore[var-annotated]
         # defining composite foreign key constraints - have to defined in table args
         # because you cannot defined composite foreign key constraints on each mapped_column
         sqlalchemy.ForeignKeyConstraint(
@@ -191,7 +191,7 @@ class TripEndDataByCarAvailability(Base):
     )
     year: orm.Mapped[int]
     value: orm.Mapped[float]
-    __table_args__ = (# type: ignore[var-annotated]
+    __table_args__ = (  # type: ignore[var-annotated]
         # defining composite foreign key constraints - have to defined in table args
         # because you cannot defined composite foreign key constraints on each mapped_column
         sqlalchemy.ForeignKeyConstraint(
@@ -215,7 +215,7 @@ class TripEndDataByDirection(Base):
     trip_type: orm.Mapped[int] = orm.mapped_column(sqlalchemy.ForeignKey(TripType.id))
     year: orm.Mapped[int]
     value: orm.Mapped[float]
-    __table_args__ = (# type: ignore[var-annotated]
+    __table_args__ = (  # type: ignore[var-annotated]
         # defining composite foreign key constraints - have to defined in table args
         # because you cannot defined composite foreign key constraints on each mapped_column
         sqlalchemy.ForeignKeyConstraint(
@@ -238,7 +238,7 @@ class CarOwnership(Base):
     )
     year: orm.Mapped[int]
     value: orm.Mapped[float]
-    __table_args__ = (# type: ignore[var-annotated]
+    __table_args__ = (  # type: ignore[var-annotated]
         # defining composite foreign key constraints - have to defined in table args
         # because you cannot defined composite foreign key constraints on each mapped_column
         sqlalchemy.ForeignKeyConstraint(
@@ -261,7 +261,7 @@ class Planning(Base):
     )
     year: orm.Mapped[int]
     value: orm.Mapped[float]
-    __table_args__ = (# type: ignore[var-annotated]
+    __table_args__ = (  # type: ignore[var-annotated]
         # defining composite foreign key constraints - have to defined in table args
         # because you cannot defined composite foreign key constraints on each mapped_column
         sqlalchemy.ForeignKeyConstraint(
