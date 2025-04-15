@@ -12,7 +12,6 @@ import pytest
 # import pytest
 import caf.ntem as ntem
 
-
 pytest.skip(
     "Skipping integration test as this requires windows access drivers",
     allow_module_level=True,
