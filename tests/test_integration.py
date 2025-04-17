@@ -259,8 +259,7 @@ def integration_test_query(db_handler: ntem.DataBaseHandler) -> None:
     compare_trip_end_by_direction_query(db_handler)
 
 
-if __name__ == "__main__":
-
+def main() -> None:
     parser = argparse.ArgumentParser(
         prog="NTEM Integration Test",
         description="Performs integration tests on the NTEM package",
@@ -290,6 +289,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     build = args.build
 
+    access_dir_: pathlib.Path | None = None
     if args.access_database is not None:
         access_dir_ = pathlib.Path(args.access_database)
     else:
@@ -314,10 +314,25 @@ if __name__ == "__main__":
             raise FileExistsError(
                 f"Database already exists at {db_path}. Delete it to test build functionality."
             )
+
+        assert (
+            access_dir_ is not None
+        ), "Access directory must be provided to build the database."
+        assert (
+            output_dir_ is not None
+        ), "Output directory must be provided to build the database."
+
         build_database(
             access_dir=access_dir_,
             output_dir=output_dir_,
             scenarios=[scenario()],
         )
+    else:
+        if not db_path.exists():
+            raise FileNotFoundError(f"Database not found at {db_path}.")
 
     integration_test_query(get_db_handler(db_path))
+
+
+if __name__ == "__main__":
+    main()
