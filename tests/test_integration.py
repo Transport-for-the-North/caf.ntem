@@ -269,10 +269,10 @@ if __name__ == "__main__":
         "-b", "--build", action="store_true", help="Whether to test the build process (y/n)"
     )
     parser.add_argument(
-        "-adb",
+        "-a",
         "--access_database",
         default=None,
-        help="Acess database path used for building the NTEM database (only nessesary if --build is set to y)",
+        help="Access database path used for building the NTEM database (only necessary if --build is set to y)",
     )
     parser.add_argument(
         "-o",
@@ -281,7 +281,7 @@ if __name__ == "__main__":
         help="Where to output the test outputs.",
     )
     parser.add_argument(
-        "-db",
+        "-d",
         "--database",
         default=None,
         help="Database to use for the tests (if not building the database)",
