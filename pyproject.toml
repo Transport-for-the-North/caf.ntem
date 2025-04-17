@@ -29,6 +29,7 @@ dependencies = { "file" = "requirements.txt" }
 [tool.setuptools.dynamic.optional-dependencies]
 dev = { "file" = "requirements_dev.txt" }
 docs = { "file" = "docs/requirements.txt" }
+build_db = {"file" = "requirements_db_build.txt"}
 
 # Dynamic versioning for editable installs
 [tool.setuptools.cmdclass]
@@ -53,6 +54,7 @@ disable = [
     "too-many-lines",
     "use-dict-literal",
     "use-list-literal",
+    "wrong-import-order", # doesn't play well with caf packages - we also check isort
 ]
 
 # Pylint settings
