@@ -32,7 +32,7 @@ CAF package for extracting and analysing NTEM data.
 
 ## Common Analytical Framework
 
-This package is sits within the [Common Analytical Framework (CAF)](https://transport-for-the-north.github.io/caf_homepage/intro.html),
+This package sits within the [Common Analytical Framework (CAF)](https://transport-for-the-north.github.io/caf_homepage/intro.html),
 which is a collaboration between transport bodies in the UK to develop and maintain commonly used
 transport analytics and appraisal tools.
 
@@ -102,3 +102,6 @@ Once the command has finished the PDF will be located at
 
 This project was created using the Common Analytical Framework cookiecutter template found here:
 <https://github.com/Transport-for-the-North/cookiecutter-caf>
+
+This project provides and alternate interface to the UK Department for Transport's National Trip End Model (NTEM) data which can be found here:
+<https://www.data.gov.uk/dataset/11bc7aaf-ddf6-4133-a91d-84e6f20a663e/national-trip-end-model-ntem>
