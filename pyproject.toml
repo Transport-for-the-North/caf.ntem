@@ -12,16 +12,19 @@ requires-python = ">=3.9"
 authors = [{ name = "Transport for the North" }]
 classifiers = [
     "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
 ]
 
 [project.urls]
 "Bug Tracker" = "https://github.com/transport-for-the-north/caf.ntem/issues"
 Homepage = "https://github.com/transport-for-the-north/caf.ntem"
 Source = "https://github.com/transport-for-the-north/caf.ntem"
+Documentation = "http://cafntem.rtfd.io/"
+
+[project.scripts]
+"caf.ntem" = "caf.ntem.__main__:main"
 
 [tool.setuptools.dynamic]
 dependencies = { "file" = "requirements.txt" }
