@@ -585,7 +585,7 @@ class TripEndByDirectionQuery(QueryParams):
         Whether to convert the segmentation IDs to names after outputting.
     """
 
-    def __init__(  # pylint: disable = too-many-arguments
+    def __init__(  # pylint: disable = too-many-arguments, too-many-locals
         self,
         *year: int,
         scenario: ntem_constants.Scenarios,
@@ -601,6 +601,7 @@ class TripEndByDirectionQuery(QueryParams):
         aggregate_mode: bool = True,
         time_period_filter: list[ntem_constants.TimePeriod] | None = None,
         output_names: bool = True,
+        average_hour: bool = True,
     ):
 
         # TODO(KF) Sensible way to batch up some of theses args?
@@ -628,6 +629,7 @@ class TripEndByDirectionQuery(QueryParams):
         self._aggregate_mode: bool = aggregate_mode
         self._time_period_filter: list[int] | None = None
         self._replace_names = output_names
+        self._average_hour = average_hour
 
         self._trip_type = trip_type.id()
         if purpose_filter is not None:
@@ -830,24 +832,34 @@ class TripEndByDirectionQuery(QueryParams):
             structure.TripEndDataByDirection.time_period,
             structure.TripEndDataByDirection.year,
         ]
+        if self._average_hour:
+            if self._output_zoning == ntem_constants.ZoningSystems.NTEM_ZONE.id and not (
+                self._aggregate_mode or self._aggregate_purpose
+            ):
+                select_cols.append(
+                    (
+                        structure.TripEndDataByDirection.value
+                        / structure.TimePeriodTypes.divide_by
+                    ).label("value")
+                )
 
-        if self._output_zoning == ntem_constants.ZoningSystems.NTEM_ZONE.id and not (
-            self._aggregate_mode or self._aggregate_purpose
-        ):
-            select_cols.append(
-                (
-                    structure.TripEndDataByDirection.value
-                    / structure.TimePeriodTypes.divide_by
-                ).label("value")
-            )
-
+            else:
+                select_cols.append(
+                    sqlalchemy.func.sum(
+                        structure.TripEndDataByDirection.value
+                        / structure.TimePeriodTypes.divide_by
+                    ).label("value")
+                )
         else:
-            select_cols.append(
-                sqlalchemy.func.sum(
-                    structure.TripEndDataByDirection.value
-                    / structure.TimePeriodTypes.divide_by
-                ).label("value")
-            )
+            if self._output_zoning == ntem_constants.ZoningSystems.NTEM_ZONE.id and not (
+                self._aggregate_mode or self._aggregate_purpose
+            ):
+                select_cols.append((structure.TripEndDataByDirection.value).label("value"))
+
+            else:
+                select_cols.append(
+                    sqlalchemy.func.sum(structure.TripEndDataByDirection.value).label("value")
+                )
 
         index_cols = [
             "zone",
