@@ -10,7 +10,9 @@
 
    .. autosummary::
    {% for item in attributes %}
+      {%- if item not in inherited_members %}
       ~{{ name }}.{{ item }}
+      {%- endif -%}
    {%- endfor %}
    {% endif %}
    {% endblock %}
@@ -22,7 +24,9 @@
    .. autosummary::
       :toctree:
    {% for item in methods %}
+      {%- if item not in inherited_members %}
       ~{{ name }}.{{ item }}
+      {%- endif -%}
    {%- endfor %}
    {% endif %}
    {% endblock %}
@@ -32,7 +36,9 @@
    {% if attributes %}
    .. rubric:: Attributes Documentation
    {% for item in attributes %}
+   {%- if item not in inherited_members %}
    .. autoattribute:: {{ name }}.{{ item }}
+   {%- endif -%}
    {%- endfor %}
    {% endif %}
    {% endblock %}
