@@ -79,6 +79,15 @@ autosummary_generate = True
 autosummary_imported_members = True
 modindex_common_prefix = ["caf.", "caf.ntem."]
 
+autosummary_context = {
+    # Enable inherited methods / attributes in all classes
+    "include_inherited_methods": False,
+    "include_inherited_attributes": False,
+    # Enable / disable inherited methods / attributes in some classes
+    "show_inherited": [],
+    "exclude_inherited": [],
+}
+
 # -- Options for Sphinx Examples gallery -------------------------------------
 sphinx_gallery_conf = {
     "examples_dirs": "../../examples",  # path to your example scripts
