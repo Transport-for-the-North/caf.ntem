@@ -149,6 +149,11 @@ html_theme_options = {
         },
     ],
     "primary_sidebar_end": ["indices.html", "sidebar-ethical-ads.html"],
+    "announcement": """
+        The documentation pages are currently work-in-progress, if you have any suggestions
+        for improvements please raise an issue on the
+        <a href="https://github.com/Transport-for-the-North/caf.ntem/issues/new/choose">caf.ntem repository</a>.
+    """,
 }
 html_context = {
     "github_url": "https://github.com",

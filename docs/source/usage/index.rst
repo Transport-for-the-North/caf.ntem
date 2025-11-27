@@ -1,16 +1,18 @@
 Tool Usage
 ==========
 
-.. attention::
-    The tool usage docs pages are currently work-in-progress, if you have any suggestions
-    for specific please consider raising an issue on
-    `GitHub <https://github.com/transport-for-the-north/caf.ntem/issues>`__.
+CAF.ntem provides functionality to load NTEM datasets into a SQlite database and
+query the database to produce planning, trip end and car ownership datasets. The
+tools functionality is provided via a command-line interface (CLI) with multiple
+sub-commands.
 
-Graphical User Interface
-------------------------
+.. seealso::
 
-.. todo::
-    Does CAF.ntem have a GUI?
+   - :ref:`quick start` for instructions on installation.
+   - :ref:`tutorials` for more detailed tutorials on using CAF.ntem.
+   - :ref:`code examples` for example code snippets using CAF.ntem.
+   - :ref:`api reference` for details on the package API.
+
 
 Command-Line Interface
 ----------------------

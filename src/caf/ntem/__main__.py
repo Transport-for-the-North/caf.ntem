@@ -76,7 +76,8 @@ def _create_arg_parser() -> argparse.ArgumentParser:
     query_parser = subparsers.add_parser(
         "query",
         help="Query the NTEM dataset",
-        description="Query the NTEM Database to get subset of data by region and year",
+        description="Query the NTEM database to get planning, car ownership or trip end data,"
+        " allows filtering / aggregating each dataset to specific areas, purposes or modes.",
         formatter_class=ctk.arguments.TidyUsageArgumentDefaultsHelpFormatter,
     )
 

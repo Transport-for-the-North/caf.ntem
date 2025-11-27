@@ -7,9 +7,10 @@
 Welcome to CAF.ntem's documentation!
 ===========================================================
 
-CAF package for extracting and analysing NTEM data.
-
-CAF.ntem source code is available on `GitHub <https://github.com/transport-for-the-north/caf.ntem>`_.
+Common analytical framework (CAF) Python package for extracting and analysing NTEM data.
+CAF.ntem provides functionality to load NTEM datasets into a database and
+query the database to produce planning, trip end and car ownership datasets. The
+tools functionality is provided via a command-line interface (CLI) and Python API.
 
 
 Common Analytical Framework
