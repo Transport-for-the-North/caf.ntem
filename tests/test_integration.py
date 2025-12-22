@@ -72,6 +72,7 @@ def compare_planning_query(conn: sqlalchemy.Connection) -> None:
         right=control_planning_result(),
         check_names=False,
     )
+    print("compare_planning_query - pass")
 
 
 def control_tebd_result() -> pd.DataFrame:
@@ -123,6 +124,7 @@ def compare_trip_end_by_direction_query(conn: sqlalchemy.Connection) -> None:
         right=control_tebd_result(),
         check_names=False,
     )
+    print("compare_trip_end_by_direction_query - pass")
 
 
 def control_tebca_result() -> pd.DataFrame:
@@ -203,6 +205,7 @@ def compare_trip_end_by_car_av_query(conn: sqlalchemy.Connection) -> None:
         right=control_tebca_result(),
         check_names=False,
     )
+    print("compare_trip_end_by_car_av_query - pass")
 
 
 def control_car_ownership_result() -> pd.DataFrame:
@@ -245,6 +248,7 @@ def compare_car_ownership_query(conn: sqlalchemy.Connection) -> None:
         right=control_car_ownership_result(),
         check_names=False,
     )
+    print("compare_car_ownership_query - pass")
 
 
 def get_db_engine(db_path: pathlib.Path) -> sqlalchemy.Engine:
