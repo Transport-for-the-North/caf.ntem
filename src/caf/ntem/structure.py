@@ -31,31 +31,24 @@ def schema_connection_string(output_path: pathlib.Path) -> str:
     return f"ATTACH DATABASE {output_path.resolve()} AS ntem"
 
 
-class DataBaseHandler:
-    """Handles accessing and querying a database."""
+def query_to_dataframe(
+    conn: sqlalchemy.Connection,
+    query: sqlalchemy.Selectable,
+    *,
+    column_names: dict[str, str] | None = None,
+    index_columns: list[str] | None = None,
+) -> pd.DataFrame:
+    """Query database using an sqlalchemy query and returns a dataframe."""
 
-    def __init__(self, host: pathlib.Path):
-        self.engine = sqlalchemy.create_engine(connection_string(host))
+    data = pd.read_sql(query, conn)
 
-    def query_to_dataframe(
-        self,
-        query: sqlalchemy.Selectable,
-        *,
-        column_names: dict[str, str] | None = None,
-        index_columns: list[str] | None = None,
-    ) -> pd.DataFrame:
-        """Query database using an sqlalchemy query and returns a dataframe."""
+    if column_names is not None:
+        data = data.rename(columns=column_names)
 
-        with sqlalchemy.Connection(self.engine) as connection:
-            data = pd.read_sql(query, connection)
+    if index_columns is not None:
+        data = data.set_index(index_columns)
 
-        if column_names is not None:
-            data = data.rename(columns=column_names)
-
-        if index_columns is not None:
-            data = data.set_index(index_columns)
-
-        return data
+    return data
 
 
 class Base(orm.DeclarativeBase):

@@ -6,6 +6,7 @@ import pathlib
 
 # Third Party
 import pandas as pd
+import sqlalchemy
 
 # Local Imports
 # import pytest
@@ -50,7 +51,7 @@ def control_planning_result() -> pd.DataFrame:
     ).set_index(["zone", "year"])
 
 
-def compare_planning_query(db_handler: ntem.DataBaseHandler) -> None:
+def compare_planning_query(conn: sqlalchemy.Connection) -> None:
     """Test for the planning query
 
     Compares 2018 and 2023 planning results and TEMPro
@@ -63,7 +64,7 @@ def compare_planning_query(db_handler: ntem.DataBaseHandler) -> None:
         output_zoning=ntem.ZoningSystems.AUTHORITY,
         filter_zoning_system=ntem.ZoningSystems.AUTHORITY,
         filter_zone_names=["Newcastle upon Tyne"],
-    ).query(db_handler)
+    ).query(conn)
 
     # We round as we are comparing to TEMPro which gives results rounded to the nearest integer.
     pd.testing.assert_frame_equal(
@@ -95,7 +96,7 @@ def control_tebd_result() -> pd.DataFrame:
     ).set_index(["zone", "time_period", "year"])
 
 
-def compare_trip_end_by_direction_query(db_handler: ntem.DataBaseHandler) -> None:
+def compare_trip_end_by_direction_query(conn: sqlalchemy.Connection) -> None:
     """Test for the trip end by direction query.
 
     Compares 2018 and 2023 trip end by direction results and TEMPro
@@ -115,7 +116,7 @@ def compare_trip_end_by_direction_query(db_handler: ntem.DataBaseHandler) -> Non
         time_period_filter=[ntem.TimePeriod.AM],
         filter_zoning_system=ntem.ZoningSystems.AUTHORITY,
         filter_zone_names=["Newcastle upon Tyne"],
-    ).query(db_handler)
+    ).query(conn)
     # We round as we are comparing to TEMPro which gives results rounded to the nearest integer.
     pd.testing.assert_frame_equal(
         test_tebd.round(0),
@@ -169,13 +170,14 @@ def control_tebca_result() -> pd.DataFrame:
                 ]
             ),
             "value": pd.Series(
-                [7962, 19535, 79897, 100589, 7720, 21787, 82526, 108576], dtype="float64"
+                [7962, 19535, 79897, 100589, 7720, 21787, 82526, 108576],
+                dtype="float64",
             ),
         },
     ).set_index(["zone", "car_availability_type", "year"])
 
 
-def compare_trip_end_by_car_av_query(db_handler: ntem.DataBaseHandler) -> None:
+def compare_trip_end_by_car_av_query(conn: sqlalchemy.Connection) -> None:
     """Test for the trip end by car availability query.
 
     Compares 2018 and 2023 trip end by car availability results and TEMPro
@@ -193,7 +195,7 @@ def compare_trip_end_by_car_av_query(db_handler: ntem.DataBaseHandler) -> None:
         output_zoning=ntem.ZoningSystems.AUTHORITY,
         filter_zoning_system=ntem.ZoningSystems.AUTHORITY,
         filter_zone_names=["Newcastle upon Tyne"],
-    ).query(db_handler)
+    ).query(conn)
 
     # We round as we are comparing to TEMPro which gives results rounded to the nearest integer
     pd.testing.assert_frame_equal(
@@ -221,7 +223,7 @@ def control_car_ownership_result() -> pd.DataFrame:
     ).set_index(["zone", "year"])
 
 
-def compare_car_ownership_query(db_handler: ntem.DataBaseHandler) -> None:
+def compare_car_ownership_query(conn: sqlalchemy.Connection) -> None:
     """Test for the car ownership query.
 
     Compares 2018 and 2023 car ownership results and TEMPro
@@ -235,7 +237,7 @@ def compare_car_ownership_query(db_handler: ntem.DataBaseHandler) -> None:
         output_zoning=ntem.ZoningSystems.AUTHORITY,
         filter_zoning_system=ntem.ZoningSystems.AUTHORITY,
         filter_zone_names=["Newcastle upon Tyne"],
-    ).query(db_handler)
+    ).query(conn)
 
     # We round as we are comparing to TEMPro which gives results rounded to the nearest integer
     pd.testing.assert_frame_equal(
@@ -245,27 +247,31 @@ def compare_car_ownership_query(db_handler: ntem.DataBaseHandler) -> None:
     )
 
 
-def get_db_handler(db_path: pathlib.Path) -> ntem.DataBaseHandler:
+def get_db_engine(db_path: pathlib.Path) -> sqlalchemy.Engine:
     """Get database handler to use for tests."""
-    db_handler = ntem.DataBaseHandler(host=db_path)
-    return db_handler
+    url = ntem.structure.connection_string(db_path)
+    return sqlalchemy.create_engine(url)
 
 
-def integration_test_query(db_handler: ntem.DataBaseHandler) -> None:
+def integration_test_query(conn: sqlalchemy.Connection) -> None:
     """Test the NTEM queries."""
-    compare_trip_end_by_car_av_query(db_handler)
-    compare_car_ownership_query(db_handler)
-    compare_planning_query(db_handler)
-    compare_trip_end_by_direction_query(db_handler)
+    compare_trip_end_by_car_av_query(conn)
+    compare_car_ownership_query(conn)
+    compare_planning_query(conn)
+    compare_trip_end_by_direction_query(conn)
 
 
 def main() -> None:
+    """Run integration test script."""
     parser = argparse.ArgumentParser(
         prog="NTEM Integration Test",
         description="Performs integration tests on the NTEM package",
     )
     parser.add_argument(
-        "-b", "--build", action="store_true", help="Whether to test the build process (y/n)"
+        "-b",
+        "--build",
+        action="store_true",
+        help="Whether to test the build process (y/n)",
     )
     parser.add_argument(
         "-a",
@@ -331,7 +337,9 @@ def main() -> None:
         if not db_path.exists():
             raise FileNotFoundError(f"Database not found at {db_path}.")
 
-    integration_test_query(get_db_handler(db_path))
+    engine = get_db_engine(db_path)
+    with engine.connect() as conn:
+        integration_test_query(conn)
 
 
 if __name__ == "__main__":
