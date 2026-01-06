@@ -173,13 +173,17 @@ class QueryParams(abc.ABC):
         self._filter_zone_names: list[str] | None = filter_zone_names
 
     @abc.abstractmethod
-    def query(self, conn: sqlalchemy.Connection) -> pd.DataFrame:
+    def query(
+        self, conn: sqlalchemy.Connection, include_zone_name: bool = False
+    ) -> pd.DataFrame:
         """Query NTEM database using parameters defined on initialisation.
 
         Parameters
         ----------
         conn
             Connection to the database containing the NTEM data.
+        include_zone_name
+            If True, include "zone_name" column in output.
 
         Returns
         -------
@@ -251,13 +255,17 @@ class PlanningQuery(QueryParams):
         self._employment: bool = employment
         self._household: bool = household
 
-    def query(self, conn: sqlalchemy.Connection) -> pd.DataFrame:
+    def query(
+        self, conn: sqlalchemy.Connection, include_zone_name: bool = False
+    ) -> pd.DataFrame:
         """Query NTEM database for Planning data using parameters defined on initialisation.
 
         Parameters
         ----------
         conn
             Connection to the database containing the NTEM data.
+        include_zone_name
+            If True, include "zone_name" column in output.
 
         Returns
         -------
@@ -268,6 +276,7 @@ class PlanningQuery(QueryParams):
         data = self._data_query(
             conn=conn,
             years=self._years,
+            include_zone_name=include_zone_name,
         )
         # TODO(kf) move these filters to where statement in the query
         if not self._residential:
@@ -285,6 +294,7 @@ class PlanningQuery(QueryParams):
         *,
         conn: sqlalchemy.Connection,
         years: Iterable[int],
+        include_zone_name: bool = False,
     ) -> pd.DataFrame:
         LOG.debug("Building planning query for year %s", years)
 
@@ -359,8 +369,13 @@ class PlanningQuery(QueryParams):
         else:
             data["zone"] = data["zone_code"]
 
+        if include_zone_name:
+            index_cols = ["zone", "zone_name", "year"]
+        else:
+            index_cols = ["zone", "year"]
+
         return data.pivot(
-            index=["zone", "year"],
+            index=index_cols,
             columns="data_type",
             values="value",
         )
@@ -413,13 +428,17 @@ class CarOwnershipQuery(QueryParams):
             filter_zone_names=filter_zone_names,
         )
 
-    def query(self, conn: sqlalchemy.Connection) -> pd.DataFrame:
+    def query(
+        self, conn: sqlalchemy.Connection, include_zone_name: bool = False
+    ) -> pd.DataFrame:
         """Query NTEM database for Car Ownership data using parameters defined on initialisation.
 
         Parameters
         ----------
         conn
             Connection to the database containing the NTEM data.
+        include_zone_name
+            If True, include "zone_name" column in output.
 
         Returns
         -------
@@ -427,7 +446,7 @@ class CarOwnershipQuery(QueryParams):
         Car Ownership data with columns "zone", "year", "car_ownership_type", "value"
         """
 
-        return self._data_query(conn, years=self._years)
+        return self._data_query(conn, years=self._years, include_zone_name=include_zone_name)
 
     @_linear_interpolate
     def _data_query(
@@ -435,6 +454,7 @@ class CarOwnershipQuery(QueryParams):
         conn: sqlalchemy.Connection,
         *,
         years: Iterable[int],
+        include_zone_name: bool = False,
     ) -> pd.DataFrame:
         LOG.debug("Building car ownership query for year %s", years)
 
@@ -533,8 +553,13 @@ class CarOwnershipQuery(QueryParams):
         else:
             data["zone"] = data["zone_code"]
 
+        if include_zone_name:
+            index_cols = ["zone", "zone_name", "year"]
+        else:
+            index_cols = ["zone", "year"]
+
         return data.pivot(
-            index=["year", "zone"],
+            index=index_cols,
             columns="car_ownership_type",
             values="value",
         )
@@ -637,7 +662,9 @@ class TripEndByDirectionQuery(QueryParams):
         # Docstring inherited
         return self._name
 
-    def query(self, conn: sqlalchemy.Connection) -> pd.DataFrame:
+    def query(
+        self, conn: sqlalchemy.Connection, include_zone_name: bool = False
+    ) -> pd.DataFrame:
         """Query NTEM database for Trip End by Direction data using parameters defined on initialisation.
 
         Note the outputs are total time period e.g AM is 3hr 7AM-10AM.
@@ -646,6 +673,8 @@ class TripEndByDirectionQuery(QueryParams):
         ----------
         conn
             Connection to the database containing the NTEM data.
+        include_zone_name
+            If True, include "zone_name" column in output.
 
         Returns
         -------
@@ -656,7 +685,9 @@ class TripEndByDirectionQuery(QueryParams):
         """
         data = self._data_query(conn, years=self._years)
 
-        data = self._apply_lookups(data, conn, self._replace_names)
+        data = self._apply_lookups(
+            data, conn, self._replace_names, include_zone_name=include_zone_name
+        )
 
         return data
 
@@ -742,6 +773,7 @@ class TripEndByDirectionQuery(QueryParams):
         data: pd.DataFrame,
         conn: sqlalchemy.Connection,
         replace_ids: bool,
+        include_zone_name: bool = False,
     ) -> pd.DataFrame:
         LOG.debug("Applying lookups")
         data_values = data.copy()
@@ -800,6 +832,9 @@ class TripEndByDirectionQuery(QueryParams):
                     ),
                     index_columns=["id"],
                 )["name"].to_dict()
+
+        if include_zone_name:
+            data_values = _insert_zone_names(conn, data_values, self._output_zoning)
 
         for level, lookup in replacements.items():
             data_values = data_values.rename(index=lookup, level=level)
@@ -1038,7 +1073,9 @@ class TripEndByCarAvailabilityQuery(QueryParams):
         # Docstring inherited
         return self._name
 
-    def query(self, conn: sqlalchemy.Connection) -> pd.DataFrame:
+    def query(
+        self, conn: sqlalchemy.Connection, include_zone_name: bool = False
+    ) -> pd.DataFrame:
         """Query NTEM database for Trip End by Car Availability data using parameters defined on initialisation.
 
         Output values are weekly total trips.
@@ -1047,6 +1084,8 @@ class TripEndByCarAvailabilityQuery(QueryParams):
         ----------
         conn
             Connection to the database containing the NTEM data.
+        include_zone_name
+            If True, include "zone_name" column in output.
 
         Returns
         -------
@@ -1058,7 +1097,9 @@ class TripEndByCarAvailabilityQuery(QueryParams):
 
         data = self._data_query(conn, years=self._years)
 
-        data = self._apply_lookups(data, conn, self._replace_names)
+        data = self._apply_lookups(
+            data, conn, self._replace_names, include_zone_name=include_zone_name
+        )
 
         return data
 
@@ -1067,6 +1108,7 @@ class TripEndByCarAvailabilityQuery(QueryParams):
         data: pd.DataFrame,
         conn: sqlalchemy.Connection,
         replace_ids: bool,
+        include_zone_name: bool = False,
     ) -> pd.DataFrame:
         LOG.debug("Applying lookups")
         data_values = data.copy()
@@ -1125,6 +1167,9 @@ class TripEndByCarAvailabilityQuery(QueryParams):
                     ),
                     index_columns=["id"],
                 )["name"].to_dict()
+
+        if include_zone_name:
+            data_values = _insert_zone_names(conn, data_values, self._output_zoning)
 
         for col, lookup in replacements.items():
             data_values = data_values.rename(index=lookup, level=col)
@@ -1276,3 +1321,21 @@ def _zone_subset(zone_names: list[str], zoning_id: int) -> sqlalchemy.Select:
             & (structure.Zones.zone_type_id == zoning_id)
         )
     )
+
+
+def _insert_zone_names(conn: sqlalchemy.Connection, data: pd.DataFrame, zone_system: int):
+    """Add zone names as an index level"""
+    level_name = "zone"
+    levels = data.index.names
+    zone_name = "zone_name"
+    levels.insert(levels.index(level_name) + 1, zone_name)
+
+    stmt = sqlalchemy.select(structure.Zones.id, structure.Zones.name).where(
+        structure.Zones.zone_type_id == zone_system
+    )
+
+    result = conn.execute(stmt)
+    names = data.index.get_level_values(level_name).to_series().replace(dict(result.tuples()))
+
+    data = data.set_index(pd.Index(names, name=zone_name), append=True)
+    return data.reorder_levels(levels)
