@@ -1330,7 +1330,7 @@ def _zone_subset(zone_names: list[str], zoning_id: int) -> sqlalchemy.Select:
 
 
 def _insert_zone_names(conn: sqlalchemy.Connection, data: pd.DataFrame, zone_system: int):
-    """Add zone names as an index level"""
+    """Add zone names as an index level."""
     level_name = "zone"
     levels = data.index.names
     zone_name = "zone_name"
