@@ -165,12 +165,18 @@ class QueryParams(abc.ABC):
 
         self._years: list[int] = list(years)
         self._scenario: int = int(scenario.id(version))
-        self._output_zoning: int = int(output_zoning.id)
+        self._output_zone_system = output_zoning
+        self._output_zoning_id: int = int(output_zoning.id)
         self._metadata_id: int = int(scenario.id(version))
         self._filter_zoning_system: int | None = (
             int(filter_zoning_system.id) if filter_zoning_system is not None else None
         )
         self._filter_zone_names: list[str] | None = filter_zone_names
+
+    @property
+    def output_zone_system(self) -> ntem_constants.ZoningSystems:
+        """Zone system query outputs at."""
+        return self._output_zone_system
 
     @abc.abstractmethod
     def query(
@@ -316,7 +322,7 @@ class PlanningQuery(QueryParams):
                 "or neither provided if no spatial filter is to be performed."
             )
 
-        if self._output_zoning == ntem_constants.ZoningSystems.NTEM_ZONE.id:
+        if self._output_zoning_id == ntem_constants.ZoningSystems.NTEM_ZONE.id:
             query = sqlalchemy.select(
                 structure.Zones.source_id_or_code.label("zone_code"),
                 structure.Zones.name.label("zone_name"),
@@ -345,7 +351,7 @@ class PlanningQuery(QueryParams):
                         structure.GeoLookup.from_zone_type_id
                         == ntem_constants.ZoningSystems.NTEM_ZONE.id
                     )
-                    & (structure.GeoLookup.to_zone_type_id == self._output_zoning)
+                    & (structure.GeoLookup.to_zone_type_id == self._output_zoning_id)
                     & (structure.Zones.id == structure.GeoLookup.to_zone_id)
                 )
                 .group_by(
@@ -475,7 +481,7 @@ class CarOwnershipQuery(QueryParams):
                 "or neither provided if no spatial filter is to be performed."
             )
 
-        if self._output_zoning == ntem_constants.ZoningSystems.NTEM_ZONE.id:
+        if self._output_zoning_id == ntem_constants.ZoningSystems.NTEM_ZONE.id:
             query = (
                 sqlalchemy.select(
                     structure.Zones.source_id_or_code.label("zone_code"),
@@ -529,12 +535,12 @@ class CarOwnershipQuery(QueryParams):
                 )
                 .where(
                     data_filter
-                    & (structure.GeoLookup.to_zone_type_id == self._output_zoning)
+                    & (structure.GeoLookup.to_zone_type_id == self._output_zoning_id)
                     & (
                         structure.GeoLookup.from_zone_type_id
                         == ntem_constants.ZoningSystems.NTEM_ZONE.id
                     )
-                    & (structure.GeoLookup.to_zone_type_id == self._output_zoning)
+                    & (structure.GeoLookup.to_zone_type_id == self._output_zoning_id)
                 )
                 .group_by(
                     structure.Zones.id,
@@ -723,11 +729,11 @@ class TripEndByDirectionQuery(QueryParams):
             )
         )
 
-        if self._output_zoning == ntem_constants.ZoningSystems.NTEM_ZONE.id:
+        if self._output_zoning_id == ntem_constants.ZoningSystems.NTEM_ZONE.id:
             zoning = base.ZoningSystem.get_zoning("ntem")
-        elif self._output_zoning == ntem_constants.ZoningSystems.REGION.id:
+        elif self._output_zoning_id == ntem_constants.ZoningSystems.REGION.id:
             zoning = base.ZoningSystem.get_zoning("ntem_region")
-        elif self._output_zoning == ntem_constants.ZoningSystems.AUTHORITY.id:
+        elif self._output_zoning_id == ntem_constants.ZoningSystems.AUTHORITY.id:
             zoning = base.ZoningSystem.get_zoning("ntem_authority")
         else:
             raise NotImplementedError(
@@ -785,7 +791,7 @@ class TripEndByDirectionQuery(QueryParams):
             sqlalchemy.select(
                 structure.Zones.id.label("id"),
                 structure.Zones.source_id_or_code.label("name"),
-            ).where(structure.Zones.zone_type_id == self._output_zoning),
+            ).where(structure.Zones.zone_type_id == self._output_zoning_id),
             index_columns=["id"],
         )
 
@@ -799,7 +805,7 @@ class TripEndByDirectionQuery(QueryParams):
                 conn,
                 sqlalchemy.select(
                     structure.Zones.id.label("id"), structure.Zones.name.label("name")
-                ).where(structure.Zones.zone_type_id == self._output_zoning),
+                ).where(structure.Zones.zone_type_id == self._output_zoning_id),
                 index_columns=["id"],
             )
 
@@ -834,7 +840,7 @@ class TripEndByDirectionQuery(QueryParams):
                 )["name"].to_dict()
 
         if include_zone_name:
-            data_values = _insert_zone_names(conn, data_values, self._output_zoning)
+            data_values = _insert_zone_names(conn, data_values, self._output_zoning_id)
 
         for level, lookup in replacements.items():
             data_values = data_values.rename(index=lookup, level=level)
@@ -856,7 +862,7 @@ class TripEndByDirectionQuery(QueryParams):
             structure.TripEndDataByDirection.year,
         ]
 
-        if self._output_zoning == ntem_constants.ZoningSystems.NTEM_ZONE.id and not (
+        if self._output_zoning_id == ntem_constants.ZoningSystems.NTEM_ZONE.id and not (
             self._aggregate_mode or self._aggregate_purpose
         ):
             select_cols.append(
@@ -896,7 +902,7 @@ class TripEndByDirectionQuery(QueryParams):
             groupby_cols.append(structure.TripEndDataByDirection.mode)
             index_cols.append("mode")
 
-        if self._output_zoning == ntem_constants.ZoningSystems.NTEM_ZONE.id:
+        if self._output_zoning_id == ntem_constants.ZoningSystems.NTEM_ZONE.id:
             select_cols.insert(0, structure.TripEndDataByDirection.zone_id.label("zone"))
             groupby_cols.insert(0, structure.TripEndDataByDirection.zone_id)
 
@@ -947,7 +953,7 @@ class TripEndByDirectionQuery(QueryParams):
                 self._time_period_filter
             )
 
-        if self._output_zoning == ntem_constants.ZoningSystems.NTEM_ZONE.id:
+        if self._output_zoning_id == ntem_constants.ZoningSystems.NTEM_ZONE.id:
             query = query.where(base_filter)
 
             if self._aggregate_mode or self._aggregate_purpose:
@@ -971,7 +977,7 @@ class TripEndByDirectionQuery(QueryParams):
                         structure.GeoLookup.from_zone_type_id
                         == ntem_constants.ZoningSystems.NTEM_ZONE.id
                     )
-                    & (structure.GeoLookup.to_zone_type_id == self._output_zoning)
+                    & (structure.GeoLookup.to_zone_type_id == self._output_zoning_id)
                     & (structure.Zones.id == structure.GeoLookup.to_zone_id)
                 )
                 .group_by(*groupby_cols)
@@ -1120,7 +1126,7 @@ class TripEndByCarAvailabilityQuery(QueryParams):
             sqlalchemy.select(
                 structure.Zones.id.label("id"),
                 structure.Zones.source_id_or_code.label("name"),
-            ).where(structure.Zones.zone_type_id == self._output_zoning),
+            ).where(structure.Zones.zone_type_id == self._output_zoning_id),
             index_columns=["id"],
         )
 
@@ -1134,7 +1140,7 @@ class TripEndByCarAvailabilityQuery(QueryParams):
                 conn,
                 sqlalchemy.select(
                     structure.Zones.id.label("id"), structure.Zones.name.label("name")
-                ).where(structure.Zones.zone_type_id == self._output_zoning),
+                ).where(structure.Zones.zone_type_id == self._output_zoning_id),
                 index_columns=["id"],
             )
 
@@ -1169,7 +1175,7 @@ class TripEndByCarAvailabilityQuery(QueryParams):
                 )["name"].to_dict()
 
         if include_zone_name:
-            data_values = _insert_zone_names(conn, data_values, self._output_zoning)
+            data_values = _insert_zone_names(conn, data_values, self._output_zoning_id)
 
         for col, lookup in replacements.items():
             data_values = data_values.rename(index=lookup, level=col)
@@ -1195,7 +1201,7 @@ class TripEndByCarAvailabilityQuery(QueryParams):
             structure.TripEndDataByCarAvailability.year.label("year"),
         ]
 
-        if self._output_zoning == ntem_constants.ZoningSystems.NTEM_ZONE.id and not (
+        if self._output_zoning_id == ntem_constants.ZoningSystems.NTEM_ZONE.id and not (
             self._aggregate_mode or self._aggregate_purpose
         ):
             select_cols.append(structure.TripEndDataByCarAvailability.value.label("value"))
@@ -1224,7 +1230,7 @@ class TripEndByCarAvailabilityQuery(QueryParams):
             select_cols.insert(0, structure.TripEndDataByCarAvailability.mode.label("mode"))
             groupby_cols.append(structure.TripEndDataByCarAvailability.mode)
 
-        if self._output_zoning == ntem_constants.ZoningSystems.NTEM_ZONE.id:
+        if self._output_zoning_id == ntem_constants.ZoningSystems.NTEM_ZONE.id:
             select_cols.insert(0, structure.TripEndDataByCarAvailability.zone_id.label("zone"))
             groupby_cols.insert(0, structure.TripEndDataByCarAvailability.zone_id)
 
@@ -1259,7 +1265,7 @@ class TripEndByCarAvailabilityQuery(QueryParams):
         if self._mode_filter is not None:
             base_filter &= structure.TripEndDataByCarAvailability.mode.in_(self._mode_filter)
 
-        if self._output_zoning == ntem_constants.ZoningSystems.NTEM_ZONE.id:
+        if self._output_zoning_id == ntem_constants.ZoningSystems.NTEM_ZONE.id:
             query = query.where(base_filter)
 
             if self._aggregate_mode or self._aggregate_purpose:
@@ -1283,7 +1289,7 @@ class TripEndByCarAvailabilityQuery(QueryParams):
                         structure.GeoLookup.from_zone_type_id
                         == ntem_constants.ZoningSystems.NTEM_ZONE.id
                     )
-                    & (structure.GeoLookup.to_zone_type_id == self._output_zoning)
+                    & (structure.GeoLookup.to_zone_type_id == self._output_zoning_id)
                     & (structure.Zones.id == structure.GeoLookup.to_zone_id)
                 )
                 .group_by(*groupby_cols)
