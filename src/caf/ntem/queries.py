@@ -1341,7 +1341,11 @@ def _insert_zone_names(conn: sqlalchemy.Connection, data: pd.DataFrame, zone_sys
     )
 
     result = conn.execute(stmt)
-    names = data.index.get_level_values(level_name).to_series().replace(dict(result.tuples()))
+    names = (
+        data.index.get_level_values(level_name)
+        .to_series()
+        .replace({i: j for i, j in result.tuples()})
+    )
 
     data = data.set_index(pd.Index(names, name=zone_name), append=True)
     return data.reorder_levels(levels)
