@@ -313,6 +313,8 @@ def build_db(
     output_dir : pathlib.Path
         The path to the directory to output the SQLite database.
     """
+    if not output_dir.is_dir():
+        raise NotADirectoryError(output_dir.resolve())
     output_path = output_dir / "NTEM.sqlite"
 
     LOG.info("Retrieving and sorted file paths")
@@ -329,7 +331,6 @@ def build_db(
     structure.Base.metadata.create_all(output_engine, checkfirst=True)
 
     with orm.Session(output_engine) as session:
-
         LOG.info("Creating Lookup Tables")
         create_lookup_tables(session.connection(), lookup_path)
         ntem_to_db_conversion = create_geo_lookup_table(session, lookup_path, "NTEM", "8.0")
@@ -373,7 +374,6 @@ def create_lookup_tables(connection: sqlalchemy.Connection, lookup_path: pathlib
     """
 
     for table in tqdm.tqdm(structure.LOOKUP_TABLES, desc="Creating Lookup Tables"):
-
         if structure.DB_TO_ACCESS_TABLE_LOOKUP[table.__tablename__] == "NtemTripTypeLookup":
             lookup = structure.NtemTripTypeLookup().to_dataframe()
             lookup.to_sql(table.__tablename__, connection, if_exists="append", index=False)
@@ -481,7 +481,10 @@ def create_geo_lookup_table(
 
 
 def _process_geo_lookup_data(
-    system: str, system_id: int, lookup_path: pathlib.Path, connection: sqlalchemy.Connection
+    system: str,
+    system_id: int,
+    lookup_path: pathlib.Path,
+    connection: sqlalchemy.Connection,
 ) -> dict[int, int]:
     """Read zoning lookups and add data to Zones table. Returns NTEM -> db conversion."""
     # need to pass the session since we query data immediately after writing so we need to flush
@@ -547,8 +550,8 @@ def _sort_files(
                 sorted_files[
                     FileType(scenario, f"{version_digits.group(1)}.{version_digits.group(2)}")
                 ].append(file)
-
                 break
+
         if "Lookup" in file.stem:
             if lookup is not None:
                 raise ValueError(

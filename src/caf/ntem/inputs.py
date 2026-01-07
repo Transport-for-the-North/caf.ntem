@@ -10,6 +10,7 @@ from typing import Generator
 
 # Third Party
 import pydantic
+import sqlalchemy
 import tqdm
 from pydantic import dataclasses
 
@@ -42,7 +43,7 @@ class QueryArgs(ntem_constants.InputBase):
 
     def run(self) -> None:
         """Run the query process."""
-        db_handler = structure.DataBaseHandler(self.db_path)
+        engine = sqlalchemy.create_engine(structure.connection_string(self.db_path))
         # no member error is raised despite correct type hint as it has been set to a pydantic field.
         self.output_path.mkdir(parents=True, exist_ok=True)  # pylint: disable = "no-member"
 
@@ -63,12 +64,13 @@ class QueryArgs(ntem_constants.InputBase):
         if len(run_params) == 0:
             raise ValueError("No queries have been defined.")
 
-        for run in run_params:
-            for query in tqdm.tqdm(run, desc=f"Running {run.label}"):
-                LOG.info("Running query: %s", query.name)
-                query.query(db_handler).to_csv(
-                    (self.output_path / query.name).with_suffix(".csv")
-                )
+        with engine.connect() as conn:
+            for run in run_params:
+                for query in tqdm.tqdm(run, desc=f"Running {run.label}"):
+                    LOG.info("Running query: %s", query.name)
+                    query.query(conn).to_csv(
+                        (self.output_path / query.name).with_suffix(".csv")
+                    )
 
 
 @dataclasses.dataclass

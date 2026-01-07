@@ -1,0 +1,121 @@
+# Path to directory to output CSVs
+output_path: outputs
+# Path to NTEM database (.sqlite)
+db_path: NTEM.sqlite
+
+# Define any planning data queries, multiple can be provided
+planning_runs:
+  - years:
+      - 2020
+      - 2025
+    # NTEM scenarios to produce outputs for
+    scenarios:
+      - core
+    # Zoning system to output the data in
+    output_zoning: ntem_zone
+    # NTEM version to produce outputs for
+    version: 8.0
+    # Optional zoning system to use when filtering data
+    # filter_zoning_system:
+    # Optional zones to select from the data
+    # filter_zone_names:
+    # Optional label for the query
+    # label:
+    # Enable different output datasets
+    residential: true
+    employment: true
+    household: true
+
+# Define any car ownership queries, multiple can be provided
+car_ownership_runs:
+  - years:
+      - 2020
+      - 2025
+    # NTEM scenarios to produce outputs for
+    scenarios:
+      - core
+    # Zoning system to output the data in
+    output_zoning: ntem_zone
+    # NTEM version to produce outputs for
+    version: 8.0
+    # Optional zoning system to use when filtering data
+    # filter_zoning_system: 
+    # Optional zones to select from the data
+    # filter_zone_names:
+    # Optional label for the query
+    # label:
+
+# Define any trip end by direction queries, multiple can be provided
+trip_end_by_direction_runs:
+  - years:
+      - 2020
+      - 2025
+    # NTEM scenarios to produce outputs for
+    scenarios:
+      - core
+    # Zoning system to output the data in
+    output_zoning: ntem_zone
+    # NTEM version to produce outputs for
+    version: 8.0
+    # Optional zoning system to use when filtering data
+    filter_zoning_system: county
+    # Optional zones to select from the data
+    filter_zone_names:
+      - South Yorkshire
+      - North Yorkshire
+      - West Yorkshire
+    # Optional label for the query
+    label: yorkshire ODs
+    # Trip types to retrieve
+    trip_type: OD
+    # Purposes to retrieve, if not given all are retrieved
+    purpose_filter:
+      - 1
+      - 2
+      - 3
+    # Whether to aggregate purposes
+    aggregate_purpose: false
+    # Modes to retrieve, if not given all are retrieved
+    mode_filter:
+      - walk
+      - car_driver
+      - car_passenger
+    # Whether to aggregate modes
+    aggregate_mode: false
+    # Time periods to retrieve, if not given all are given
+    time_period_filter:
+      - am
+      - pm
+
+# Define any trip end by car availability queries, multiple can be provided
+trip_end_by_car_availability_runs:
+  - years:
+      - 2020
+      - 2025
+    # NTEM scenarios to produce outputs for
+    scenarios:
+      - core
+    # Zoning system to output the data in
+    output_zoning: ntem_zone
+    # NTEM version to produce outputs for
+    version: 8.0
+    # Optional zoning system to use when filtering data
+    filter_zoning_system: region
+    # Optional zones to select from the data
+    filter_zone_names:
+      - North West
+      - North East
+    # Optional label for the query
+    label: north cars
+    # Purposes to retrieve, if not given all are retrieved
+    purpose_filter:
+      - 1
+      - 2
+    # Whether to aggregate purposes
+    aggregate_purpose: false
+    # Modes to retrieve, if not given all are retrieved
+    mode_filter:
+      - car_driver
+      - car_passenger
+    # Whether to aggregate modes
+    aggregate_mode: true

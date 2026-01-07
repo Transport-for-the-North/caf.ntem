@@ -20,7 +20,9 @@ from caf.ntem import ntem_constants, structure
 LOG = logging.getLogger(__name__)
 
 
-def _linear_interpolate(func: Callable[..., pd.DataFrame]) -> Callable[..., pd.DataFrame]:
+def _linear_interpolate(
+    func: Callable[..., pd.DataFrame],
+) -> Callable[..., pd.DataFrame]:
     """Interpolates between years for the given function."""
 
     def wrapper_func(*args, years: collections.abc.Collection[int], **kwargs) -> pd.DataFrame:
@@ -28,7 +30,6 @@ def _linear_interpolate(func: Callable[..., pd.DataFrame]) -> Callable[..., pd.D
         interpolations: dict[int, tuple[int, int]] = {}
 
         for y in years:
-
             interp_years = _interpolation_years(y)
             if interp_years is not None:
                 LOG.debug("Interpolating year %s from %s and %s", y, *interp_years)
@@ -59,7 +60,6 @@ def _linear_interpolate(func: Callable[..., pd.DataFrame]) -> Callable[..., pd.D
 
             output_stack = []
             for y in years:
-
                 if y not in interpolations:
                     output_stack.append(query_out.xs(y, level="year", drop_level=False))
                     continue
@@ -119,7 +119,6 @@ def linear_interpolation_calculation(
         raise ValueError("No data for upper and/or lower year")
 
     if isinstance(upper_data.index, pd.MultiIndex):
-
         if not upper_data.index.equal_levels(lower_data.index):
             raise KeyError("Data for upper and lower year do not have the same index levels")
     else:
@@ -166,21 +165,31 @@ class QueryParams(abc.ABC):
 
         self._years: list[int] = list(years)
         self._scenario: int = int(scenario.id(version))
-        self._output_zoning: int = int(output_zoning.id)
+        self._output_zone_system = output_zoning
+        self._output_zoning_id: int = int(output_zoning.id)
         self._metadata_id: int = int(scenario.id(version))
         self._filter_zoning_system: int | None = (
             int(filter_zoning_system.id) if filter_zoning_system is not None else None
         )
         self._filter_zone_names: list[str] | None = filter_zone_names
 
+    @property
+    def output_zone_system(self) -> ntem_constants.ZoningSystems:
+        """Zone system query outputs at."""
+        return self._output_zone_system
+
     @abc.abstractmethod
-    def query(self, db_handler: structure.DataBaseHandler) -> pd.DataFrame:
+    def query(
+        self, conn: sqlalchemy.Connection, include_zone_name: bool = False
+    ) -> pd.DataFrame:
         """Query NTEM database using parameters defined on initialisation.
 
         Parameters
         ----------
-        db_handler : structure.DataBaseHandler
-            data base handler object for the NTEM database
+        conn
+            Connection to the database containing the NTEM data.
+        include_zone_name
+            If True, include "zone_name" column in output.
 
         Returns
         -------
@@ -235,7 +244,6 @@ class PlanningQuery(QueryParams):
         employment: bool = True,
         household: bool = True,
     ):
-
         if label is None:
             self._name: str = f"Planning_{scenario.value}_{version.value}"
         else:
@@ -253,23 +261,28 @@ class PlanningQuery(QueryParams):
         self._employment: bool = employment
         self._household: bool = household
 
-    def query(self, db_handler: structure.DataBaseHandler) -> pd.DataFrame:
+    def query(
+        self, conn: sqlalchemy.Connection, include_zone_name: bool = False
+    ) -> pd.DataFrame:
         """Query NTEM database for Planning data using parameters defined on initialisation.
 
         Parameters
         ----------
-        db_handler : structure.DataBaseHandler
-            data base handler object for the NTEM database
+        conn
+            Connection to the database containing the NTEM data.
+        include_zone_name
+            If True, include "zone_name" column in output.
 
         Returns
         -------
         pd.DataFrame
         Planning data with columns "zone", "year", "data_type", "value"
         """
-        # db_handler.query_to_dataframe(sqlalchemy.Select(structure.MetaData.id).where(structure.MetaData.scenario==ntem_constants.Scenarios.CORE.value.lower()))
+        # structure.query_to_dataframe(conn,sqlalchemy.Select(structure.MetaData.id).where(structure.MetaData.scenario==ntem_constants.Scenarios.CORE.value.lower()))
         data = self._data_query(
-            db_handler=db_handler,
+            conn=conn,
             years=self._years,
+            include_zone_name=include_zone_name,
         )
         # TODO(kf) move these filters to where statement in the query
         if not self._residential:
@@ -285,8 +298,9 @@ class PlanningQuery(QueryParams):
     def _data_query(
         self,
         *,
-        db_handler: structure.DataBaseHandler,
+        conn: sqlalchemy.Connection,
         years: Iterable[int],
+        include_zone_name: bool = False,
     ) -> pd.DataFrame:
         LOG.debug("Building planning query for year %s", years)
 
@@ -308,8 +322,7 @@ class PlanningQuery(QueryParams):
                 "or neither provided if no spatial filter is to be performed."
             )
 
-        if self._output_zoning == ntem_constants.ZoningSystems.NTEM_ZONE.id:
-
+        if self._output_zoning_id == ntem_constants.ZoningSystems.NTEM_ZONE.id:
             query = sqlalchemy.select(
                 structure.Zones.source_id_or_code.label("zone_code"),
                 structure.Zones.name.label("zone_name"),
@@ -338,16 +351,19 @@ class PlanningQuery(QueryParams):
                         structure.GeoLookup.from_zone_type_id
                         == ntem_constants.ZoningSystems.NTEM_ZONE.id
                     )
-                    & (structure.GeoLookup.to_zone_type_id == self._output_zoning)
+                    & (structure.GeoLookup.to_zone_type_id == self._output_zoning_id)
                     & (structure.Zones.id == structure.GeoLookup.to_zone_id)
                 )
                 .group_by(
-                    structure.Zones.id, structure.PlanningDataTypes.id, structure.Planning.year
+                    structure.Zones.id,
+                    structure.PlanningDataTypes.id,
+                    structure.Planning.year,
                 )
             )
 
         LOG.debug("Running query")
-        data = db_handler.query_to_dataframe(
+        data = structure.query_to_dataframe(
+            conn,
             query,
         )
         LOG.debug("Query complete - post-processing data")
@@ -359,8 +375,13 @@ class PlanningQuery(QueryParams):
         else:
             data["zone"] = data["zone_code"]
 
+        if include_zone_name:
+            index_cols = ["zone", "zone_name", "year"]
+        else:
+            index_cols = ["zone", "year"]
+
         return data.pivot(
-            index=["zone", "year"],
+            index=index_cols,
             columns="data_type",
             values="value",
         )
@@ -400,7 +421,6 @@ class CarOwnershipQuery(QueryParams):
         filter_zoning_system: ntem_constants.ZoningSystems | None = None,
         filter_zone_names: list[str] | None = None,
     ):
-
         if label is None:
             self._name: str = f"Car_Ownership_{scenario.value}_{version.value}"
         else:
@@ -414,13 +434,17 @@ class CarOwnershipQuery(QueryParams):
             filter_zone_names=filter_zone_names,
         )
 
-    def query(self, db_handler: structure.DataBaseHandler) -> pd.DataFrame:
+    def query(
+        self, conn: sqlalchemy.Connection, include_zone_name: bool = False
+    ) -> pd.DataFrame:
         """Query NTEM database for Car Ownership data using parameters defined on initialisation.
 
         Parameters
         ----------
-        db_handler : structure.DataBaseHandler
-            data base handler object for the NTEM database
+        conn
+            Connection to the database containing the NTEM data.
+        include_zone_name
+            If True, include "zone_name" column in output.
 
         Returns
         -------
@@ -428,17 +452,15 @@ class CarOwnershipQuery(QueryParams):
         Car Ownership data with columns "zone", "year", "car_ownership_type", "value"
         """
 
-        return self._data_query(
-            db_handler=db_handler,
-            years=self._years,
-        )
+        return self._data_query(conn, years=self._years, include_zone_name=include_zone_name)
 
     @_linear_interpolate
     def _data_query(
         self,
+        conn: sqlalchemy.Connection,
         *,
-        db_handler: structure.DataBaseHandler,
         years: Iterable[int],
+        include_zone_name: bool = False,
     ) -> pd.DataFrame:
         LOG.debug("Building car ownership query for year %s", years)
 
@@ -459,8 +481,7 @@ class CarOwnershipQuery(QueryParams):
                 "or neither provided if no spatial filter is to be performed."
             )
 
-        if self._output_zoning == ntem_constants.ZoningSystems.NTEM_ZONE.id:
-
+        if self._output_zoning_id == ntem_constants.ZoningSystems.NTEM_ZONE.id:
             query = (
                 sqlalchemy.select(
                     structure.Zones.source_id_or_code.label("zone_code"),
@@ -514,12 +535,12 @@ class CarOwnershipQuery(QueryParams):
                 )
                 .where(
                     data_filter
-                    & (structure.GeoLookup.to_zone_type_id == self._output_zoning)
+                    & (structure.GeoLookup.to_zone_type_id == self._output_zoning_id)
                     & (
                         structure.GeoLookup.from_zone_type_id
                         == ntem_constants.ZoningSystems.NTEM_ZONE.id
                     )
-                    & (structure.GeoLookup.to_zone_type_id == self._output_zoning)
+                    & (structure.GeoLookup.to_zone_type_id == self._output_zoning_id)
                 )
                 .group_by(
                     structure.Zones.id,
@@ -528,9 +549,7 @@ class CarOwnershipQuery(QueryParams):
                 )
             )
         LOG.debug("Running query")
-        data = db_handler.query_to_dataframe(
-            query,
-        )
+        data = structure.query_to_dataframe(conn, query)
         LOG.debug("Query complete - post-processing data")
         if data["zone_code"].isna().any():
             data["zone"] = data["zone_name"]
@@ -540,8 +559,13 @@ class CarOwnershipQuery(QueryParams):
         else:
             data["zone"] = data["zone_code"]
 
+        if include_zone_name:
+            index_cols = ["zone", "zone_name", "year"]
+        else:
+            index_cols = ["zone", "year"]
+
         return data.pivot(
-            index=["year", "zone"],
+            index=index_cols,
             columns="car_ownership_type",
             values="value",
         )
@@ -602,7 +626,6 @@ class TripEndByDirectionQuery(QueryParams):
         time_period_filter: list[ntem_constants.TimePeriod] | None = None,
         output_names: bool = True,
     ):
-
         # TODO(KF) Sensible way to batch up some of theses args?
         # is this fine because most are optional?
 
@@ -645,15 +668,19 @@ class TripEndByDirectionQuery(QueryParams):
         # Docstring inherited
         return self._name
 
-    def query(self, db_handler: structure.DataBaseHandler) -> pd.DataFrame:
+    def query(
+        self, conn: sqlalchemy.Connection, include_zone_name: bool = False
+    ) -> pd.DataFrame:
         """Query NTEM database for Trip End by Direction data using parameters defined on initialisation.
 
         Note the outputs are total time period e.g AM is 3hr 7AM-10AM.
 
         Parameters
         ----------
-        db_handler : structure.DataBaseHandler
-            data base handler object for the NTEM database
+        conn
+            Connection to the database containing the NTEM data.
+        include_zone_name
+            If True, include "zone_name" column in output.
 
         Returns
         -------
@@ -662,26 +689,23 @@ class TripEndByDirectionQuery(QueryParams):
         "mode" (if aggregate_mode was set to False), "purpose" (if aggregate_purpose was set to False)
         and "value"
         """
-        data = self._data_query(
-            db_handler=db_handler,
-            years=self._years,
-        )
+        data = self._data_query(conn, years=self._years)
 
-        data = self._apply_lookups(data, db_handler, self._replace_names)
+        data = self._apply_lookups(
+            data, conn, self._replace_names, include_zone_name=include_zone_name
+        )
 
         return data
 
-    def query_to_dvec(
-        self, db_handler: structure.DataBaseHandler
-    ) -> dict[int, dict[str, base.DVector]]:
+    def query_to_dvec(self, conn: sqlalchemy.Connection) -> dict[int, dict[str, base.DVector]]:
         """Produce Dvectors containing trip end by direction data.
 
         Note the outputs are total time period e.g AM is 3hr 7AM-10AM.
 
         Parameters
         ----------
-        db_handler : structure.DataBaseHandler
-            data base handler object for the NTEM database
+        conn
+            Connection to the database containing the NTEM data.
 
         Returns
         -------
@@ -689,12 +713,9 @@ class TripEndByDirectionQuery(QueryParams):
             Trip end by direction data formatted as dict[year, dict[trip_type, data]].
         """
 
-        data = self._data_query(
-            db_handler=db_handler,
-            years=self._years,
-        )
+        data = self._data_query(conn, years=self._years)
 
-        data = self._apply_lookups(data, db_handler, False)
+        data = self._apply_lookups(data, conn, False)
 
         data.index = data.index.rename({"time_period": "tp", "purpose": "p", "mode": "m"})
 
@@ -708,11 +729,11 @@ class TripEndByDirectionQuery(QueryParams):
             )
         )
 
-        if self._output_zoning == ntem_constants.ZoningSystems.NTEM_ZONE.id:
+        if self._output_zoning_id == ntem_constants.ZoningSystems.NTEM_ZONE.id:
             zoning = base.ZoningSystem.get_zoning("ntem")
-        elif self._output_zoning == ntem_constants.ZoningSystems.REGION.id:
+        elif self._output_zoning_id == ntem_constants.ZoningSystems.REGION.id:
             zoning = base.ZoningSystem.get_zoning("ntem_region")
-        elif self._output_zoning == ntem_constants.ZoningSystems.AUTHORITY.id:
+        elif self._output_zoning_id == ntem_constants.ZoningSystems.AUTHORITY.id:
             zoning = base.ZoningSystem.get_zoning("ntem_authority")
         else:
             raise NotImplementedError(
@@ -735,7 +756,6 @@ class TripEndByDirectionQuery(QueryParams):
 
     @property
     def _segmentation(self) -> tuple[list[str], dict[str, list[int]]]:
-
         seg = ["tp"]
         seg_subset = {}
 
@@ -755,18 +775,23 @@ class TripEndByDirectionQuery(QueryParams):
         return seg, seg_subset
 
     def _apply_lookups(
-        self, data: pd.DataFrame, db_handler: structure.DataBaseHandler, replace_ids: bool
+        self,
+        data: pd.DataFrame,
+        conn: sqlalchemy.Connection,
+        replace_ids: bool,
+        include_zone_name: bool = False,
     ) -> pd.DataFrame:
-
         LOG.debug("Applying lookups")
         data_values = data.copy()
 
         replacements: dict[str, dict[int, str]] = {}
 
-        zones_lookup = db_handler.query_to_dataframe(
+        zones_lookup = structure.query_to_dataframe(
+            conn,
             sqlalchemy.select(
-                structure.Zones.id.label("id"), structure.Zones.source_id_or_code.label("name")
-            ).where(structure.Zones.zone_type_id == self._output_zoning),
+                structure.Zones.id.label("id"),
+                structure.Zones.source_id_or_code.label("name"),
+            ).where(structure.Zones.zone_type_id == self._output_zoning_id),
             index_columns=["id"],
         )
 
@@ -776,16 +801,17 @@ class TripEndByDirectionQuery(QueryParams):
             warnings.warn(
                 "The zone system you have chosen to output does not have a code column. Outputting zone name instead"
             )
-            replacements["zone"] = db_handler.query_to_dataframe(
+            replacements["zone"] = structure.query_to_dataframe(
+                conn,
                 sqlalchemy.select(
                     structure.Zones.id.label("id"), structure.Zones.name.label("name")
-                ).where(structure.Zones.zone_type_id == self._output_zoning),
+                ).where(structure.Zones.zone_type_id == self._output_zoning_id),
                 index_columns=["id"],
             )
 
         if replace_ids:
-
-            replacements["time_period"] = db_handler.query_to_dataframe(
+            replacements["time_period"] = structure.query_to_dataframe(
+                conn,
                 sqlalchemy.select(
                     structure.TimePeriodTypes.id.label("id"),
                     structure.TimePeriodTypes.name.label("name"),
@@ -794,7 +820,8 @@ class TripEndByDirectionQuery(QueryParams):
             )["name"].to_dict()
 
             if not self._aggregate_purpose:
-                replacements["purpose"] = db_handler.query_to_dataframe(
+                replacements["purpose"] = structure.query_to_dataframe(
+                    conn,
                     sqlalchemy.select(
                         structure.PurposeTypes.id.label("id"),
                         structure.PurposeTypes.name.label("name"),
@@ -803,13 +830,17 @@ class TripEndByDirectionQuery(QueryParams):
                 )["name"].to_dict()
 
             if not self._aggregate_mode:
-                replacements["mode"] = db_handler.query_to_dataframe(
+                replacements["mode"] = structure.query_to_dataframe(
+                    conn,
                     sqlalchemy.select(
                         structure.ModeTypes.id.label("id"),
                         structure.ModeTypes.name.label("name"),
                     ),
                     index_columns=["id"],
                 )["name"].to_dict()
+
+        if include_zone_name:
+            data_values = _insert_zone_names(conn, data_values, self._output_zoning_id)
 
         for level, lookup in replacements.items():
             data_values = data_values.rename(index=lookup, level=level)
@@ -819,8 +850,8 @@ class TripEndByDirectionQuery(QueryParams):
     @_linear_interpolate
     def _data_query(  # pylint: disable = too-many-branches
         self,
+        conn: sqlalchemy.Connection,
         *,
-        db_handler: structure.DataBaseHandler,
         years: Iterable[int],
     ) -> pd.DataFrame:
         # TODO(KF) tidy/split this up to reduce number of branches
@@ -831,7 +862,7 @@ class TripEndByDirectionQuery(QueryParams):
             structure.TripEndDataByDirection.year,
         ]
 
-        if self._output_zoning == ntem_constants.ZoningSystems.NTEM_ZONE.id and not (
+        if self._output_zoning_id == ntem_constants.ZoningSystems.NTEM_ZONE.id and not (
             self._aggregate_mode or self._aggregate_purpose
         ):
             select_cols.append(
@@ -871,7 +902,7 @@ class TripEndByDirectionQuery(QueryParams):
             groupby_cols.append(structure.TripEndDataByDirection.mode)
             index_cols.append("mode")
 
-        if self._output_zoning == ntem_constants.ZoningSystems.NTEM_ZONE.id:
+        if self._output_zoning_id == ntem_constants.ZoningSystems.NTEM_ZONE.id:
             select_cols.insert(0, structure.TripEndDataByDirection.zone_id.label("zone"))
             groupby_cols.insert(0, structure.TripEndDataByDirection.zone_id)
 
@@ -922,7 +953,7 @@ class TripEndByDirectionQuery(QueryParams):
                 self._time_period_filter
             )
 
-        if self._output_zoning == ntem_constants.ZoningSystems.NTEM_ZONE.id:
+        if self._output_zoning_id == ntem_constants.ZoningSystems.NTEM_ZONE.id:
             query = query.where(base_filter)
 
             if self._aggregate_mode or self._aggregate_purpose:
@@ -946,15 +977,13 @@ class TripEndByDirectionQuery(QueryParams):
                         structure.GeoLookup.from_zone_type_id
                         == ntem_constants.ZoningSystems.NTEM_ZONE.id
                     )
-                    & (structure.GeoLookup.to_zone_type_id == self._output_zoning)
+                    & (structure.GeoLookup.to_zone_type_id == self._output_zoning_id)
                     & (structure.Zones.id == structure.GeoLookup.to_zone_id)
                 )
                 .group_by(*groupby_cols)
             )
         LOG.debug("Running query")
-        data = db_handler.query_to_dataframe(
-            query,
-        )
+        data = structure.query_to_dataframe(conn, query)
         LOG.debug("Query complete")
 
         return data.pivot(
@@ -1050,15 +1079,19 @@ class TripEndByCarAvailabilityQuery(QueryParams):
         # Docstring inherited
         return self._name
 
-    def query(self, db_handler: structure.DataBaseHandler) -> pd.DataFrame:
+    def query(
+        self, conn: sqlalchemy.Connection, include_zone_name: bool = False
+    ) -> pd.DataFrame:
         """Query NTEM database for Trip End by Car Availability data using parameters defined on initialisation.
 
         Output values are weekly total trips.
 
         Parameters
         ----------
-        db_handler : structure.DataBaseHandler
-            data base handler object for the NTEM database
+        conn
+            Connection to the database containing the NTEM data.
+        include_zone_name
+            If True, include "zone_name" column in output.
 
         Returns
         -------
@@ -1068,27 +1101,32 @@ class TripEndByCarAvailabilityQuery(QueryParams):
         and "value"
         """
 
-        data = self._data_query(
-            db_handler=db_handler,
-            years=self._years,
-        )
+        data = self._data_query(conn, years=self._years)
 
-        data = self._apply_lookups(data, db_handler, self._replace_names)
+        data = self._apply_lookups(
+            data, conn, self._replace_names, include_zone_name=include_zone_name
+        )
 
         return data
 
     def _apply_lookups(
-        self, data: pd.DataFrame, db_handler: structure.DataBaseHandler, replace_ids: bool
+        self,
+        data: pd.DataFrame,
+        conn: sqlalchemy.Connection,
+        replace_ids: bool,
+        include_zone_name: bool = False,
     ) -> pd.DataFrame:
         LOG.debug("Applying lookups")
         data_values = data.copy()
 
         replacements: dict[str, dict[int, str]] = {}
 
-        zones_lookup = db_handler.query_to_dataframe(
+        zones_lookup = structure.query_to_dataframe(
+            conn,
             sqlalchemy.select(
-                structure.Zones.id.label("id"), structure.Zones.source_id_or_code.label("name")
-            ).where(structure.Zones.zone_type_id == self._output_zoning),
+                structure.Zones.id.label("id"),
+                structure.Zones.source_id_or_code.label("name"),
+            ).where(structure.Zones.zone_type_id == self._output_zoning_id),
             index_columns=["id"],
         )
 
@@ -1098,16 +1136,17 @@ class TripEndByCarAvailabilityQuery(QueryParams):
             warnings.warn(
                 "The zone system you have chosen to output does not have a code column. Outputting zone name instead"
             )
-            replacements["zone"] = db_handler.query_to_dataframe(
+            replacements["zone"] = structure.query_to_dataframe(
+                conn,
                 sqlalchemy.select(
                     structure.Zones.id.label("id"), structure.Zones.name.label("name")
-                ).where(structure.Zones.zone_type_id == self._output_zoning),
+                ).where(structure.Zones.zone_type_id == self._output_zoning_id),
                 index_columns=["id"],
             )
 
         if replace_ids:
-
-            replacements["car_availability_type"] = db_handler.query_to_dataframe(
+            replacements["car_availability_type"] = structure.query_to_dataframe(
+                conn,
                 sqlalchemy.select(
                     structure.CarAvailabilityTypes.id.label("id"),
                     structure.CarAvailabilityTypes.name.label("name"),
@@ -1116,7 +1155,8 @@ class TripEndByCarAvailabilityQuery(QueryParams):
             )["name"].to_dict()
 
             if not self._aggregate_purpose:
-                replacements["purpose"] = db_handler.query_to_dataframe(
+                replacements["purpose"] = structure.query_to_dataframe(
+                    conn,
                     sqlalchemy.select(
                         structure.PurposeTypes.id.label("id"),
                         structure.PurposeTypes.name.label("name"),
@@ -1125,13 +1165,17 @@ class TripEndByCarAvailabilityQuery(QueryParams):
                 )["name"].to_dict()
 
             if not self._aggregate_mode:
-                replacements["mode"] = db_handler.query_to_dataframe(
+                replacements["mode"] = structure.query_to_dataframe(
+                    conn,
                     sqlalchemy.select(
                         structure.ModeTypes.id.label("id"),
                         structure.ModeTypes.name.label("name"),
                     ),
                     index_columns=["id"],
                 )["name"].to_dict()
+
+        if include_zone_name:
+            data_values = _insert_zone_names(conn, data_values, self._output_zoning_id)
 
         for col, lookup in replacements.items():
             data_values = data_values.rename(index=lookup, level=col)
@@ -1141,8 +1185,8 @@ class TripEndByCarAvailabilityQuery(QueryParams):
     @_linear_interpolate
     def _data_query(  # pylint: disable = too-many-branches
         self,
+        conn: sqlalchemy.Connection,
         *,
-        db_handler: structure.DataBaseHandler,
         years: Iterable[int],
     ) -> pd.DataFrame:
         LOG.debug("Building trip end car availability query for year %s", years)
@@ -1157,7 +1201,7 @@ class TripEndByCarAvailabilityQuery(QueryParams):
             structure.TripEndDataByCarAvailability.year.label("year"),
         ]
 
-        if self._output_zoning == ntem_constants.ZoningSystems.NTEM_ZONE.id and not (
+        if self._output_zoning_id == ntem_constants.ZoningSystems.NTEM_ZONE.id and not (
             self._aggregate_mode or self._aggregate_purpose
         ):
             select_cols.append(structure.TripEndDataByCarAvailability.value.label("value"))
@@ -1186,7 +1230,7 @@ class TripEndByCarAvailabilityQuery(QueryParams):
             select_cols.insert(0, structure.TripEndDataByCarAvailability.mode.label("mode"))
             groupby_cols.append(structure.TripEndDataByCarAvailability.mode)
 
-        if self._output_zoning == ntem_constants.ZoningSystems.NTEM_ZONE.id:
+        if self._output_zoning_id == ntem_constants.ZoningSystems.NTEM_ZONE.id:
             select_cols.insert(0, structure.TripEndDataByCarAvailability.zone_id.label("zone"))
             groupby_cols.insert(0, structure.TripEndDataByCarAvailability.zone_id)
 
@@ -1221,7 +1265,7 @@ class TripEndByCarAvailabilityQuery(QueryParams):
         if self._mode_filter is not None:
             base_filter &= structure.TripEndDataByCarAvailability.mode.in_(self._mode_filter)
 
-        if self._output_zoning == ntem_constants.ZoningSystems.NTEM_ZONE.id:
+        if self._output_zoning_id == ntem_constants.ZoningSystems.NTEM_ZONE.id:
             query = query.where(base_filter)
 
             if self._aggregate_mode or self._aggregate_purpose:
@@ -1245,13 +1289,13 @@ class TripEndByCarAvailabilityQuery(QueryParams):
                         structure.GeoLookup.from_zone_type_id
                         == ntem_constants.ZoningSystems.NTEM_ZONE.id
                     )
-                    & (structure.GeoLookup.to_zone_type_id == self._output_zoning)
+                    & (structure.GeoLookup.to_zone_type_id == self._output_zoning_id)
                     & (structure.Zones.id == structure.GeoLookup.to_zone_id)
                 )
                 .group_by(*groupby_cols)
             )
         LOG.debug("Running query")
-        data = db_handler.query_to_dataframe(query, index_columns=index_cols)
+        data = structure.query_to_dataframe(conn, query, index_columns=index_cols)
         LOG.debug("Query complete")
         return data
 
@@ -1283,3 +1327,23 @@ def _zone_subset(zone_names: list[str], zoning_id: int) -> sqlalchemy.Select:
             & (structure.Zones.zone_type_id == zoning_id)
         )
     )
+
+
+def _insert_zone_names(conn: sqlalchemy.Connection, data: pd.DataFrame, zone_system: int):
+    """Add zone names as an index level."""
+    level_name = "zone"
+    levels = list(data.index.names)
+    zone_name = "zone_name"
+    levels.insert(levels.index(level_name) + 1, zone_name)
+
+    stmt = sqlalchemy.select(structure.Zones.id, structure.Zones.name).where(
+        structure.Zones.zone_type_id == zone_system
+    )
+
+    result = conn.execute(stmt)
+    # Comprehension doesn't work correctly so comprehension is needed
+    replace = {i: j for i, j in result.tuples()}  # pylint: disable=unnecessary-comprehension
+    names = data.index.get_level_values(level_name).to_series().replace(replace)
+
+    data = data.set_index(pd.Index(names, name=zone_name), append=True)
+    return data.reorder_levels(levels)

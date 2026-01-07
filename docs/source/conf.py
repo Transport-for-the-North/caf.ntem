@@ -46,6 +46,7 @@ extensions = [
     "sphinx.ext.intersphinx",
     "sphinx.ext.linkcode",
     "sphinx.ext.todo",
+    "sphinxarg.ext",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -77,6 +78,15 @@ autodoc_typehints = "description"
 autosummary_generate = True
 autosummary_imported_members = True
 modindex_common_prefix = ["caf.", "caf.ntem."]
+
+autosummary_context = {
+    # Enable inherited methods / attributes in all classes
+    "include_inherited_methods": False,
+    "include_inherited_attributes": False,
+    # Enable / disable inherited methods / attributes in some classes
+    "show_inherited": [],
+    "exclude_inherited": [],
+}
 
 # -- Options for Sphinx Examples gallery -------------------------------------
 sphinx_gallery_conf = {
@@ -148,6 +158,11 @@ html_theme_options = {
         },
     ],
     "primary_sidebar_end": ["indices.html", "sidebar-ethical-ads.html"],
+    "announcement": """
+        The documentation pages are currently work-in-progress, if you have any suggestions
+        for improvements please raise an issue on the
+        <a href="https://github.com/Transport-for-the-North/caf.ntem/issues/new/choose">caf.ntem repository</a>.
+    """,
 }
 html_context = {
     "github_url": "https://github.com",
