@@ -4,7 +4,7 @@ mypy>=1.10
 mypy_extensions>=1.0.0
 pydocstyle[toml]>=6.3
 pylint>=3.2
-isort>=5.13
+isort>=8.0.1
 
 # Testing
 pytest>=8.3
