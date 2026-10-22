@@ -9,6 +9,7 @@ import logging
 import pathlib
 import re
 import sqlite3
+import time
 from typing import Iterable, NamedTuple, Optional
 
 # Third Party
@@ -244,6 +245,40 @@ def process_scenario(
             )
 
 
+def _bulk_insert(
+    connection: sqlalchemy.Connection,
+    table_name: str,
+    data: pd.DataFrame,
+) -> None:
+    """Insert DataFrame into table using direct SQLite executemany or fallback.
+
+    Parameters
+    ----------
+    connection : sqlalchemy.Connection
+        Database connection to use for the insert.
+    table_name : str
+        Target table name.
+    data : pd.DataFrame
+        DataFrame containing data to insert.
+    """
+    raw_conn = getattr(getattr(connection, "connection", None), "dbapi_connection", None)
+    if isinstance(raw_conn, sqlite3.Connection):
+        col_list = list(data.columns)
+        placeholders = ", ".join(["?"] * len(col_list))
+        col_names = ", ".join([f'"{c}"' for c in col_list])
+        sql = f'INSERT INTO "{table_name}" ({col_names}) VALUES ({placeholders})'
+        raw_conn.cursor().executemany(sql, data.itertuples(index=False, name=None))
+    else:
+        data.to_sql(
+            table_name,
+            connection,
+            if_exists="append",
+            index=False,
+            chunksize=100000,
+            method="multi",
+        )
+
+
 def _process_ntem_access_file(
     connection: sqlalchemy.Connection,
     out_table: type[structure.Base],
@@ -278,6 +313,7 @@ def _process_ntem_access_file(
         This is used to replace the zone IDs in the data with the database IDs.
     """
     LOG.debug("Reading access data")
+    t0 = time.perf_counter()
     data = _access_to_df(path, access_table_name).rename(columns=rename_cols)
     LOG.debug("Processing data")
     # Adjust so the column names match the database structure
@@ -286,6 +322,9 @@ def _process_ntem_access_file(
 
     data = data[data[ZONE_ID_COLUMN] != INVALID_ZONE_ID]
 
+    mapped_zone = data[ZONE_ID_COLUMN].map(id_substitution)
+    data[ZONE_ID_COLUMN] = mapped_zone.fillna(data[ZONE_ID_COLUMN]).astype(int)
+
     id_columns = [METADATA_ID_COLUMN, ZONE_SYSTEM_ID_COLUMN] + id_columns
 
     data = data.melt(
@@ -293,10 +332,19 @@ def _process_ntem_access_file(
         var_name="year",
         value_name="value",
     )
-    data["zone_id"] = data["zone_id"].replace(id_substitution)
+    data["year"] = data["year"].astype(int)
 
     LOG.debug("Writing data to database")
-    data.to_sql(out_table.__tablename__, connection, if_exists="append", index=False)
+    _bulk_insert(connection, out_table.__tablename__, data)
+    elapsed = time.perf_counter() - t0
+    LOG.info(
+        "Inserted %d rows into %s from %s in %.2fs (%.0f rows/s)",
+        len(data),
+        out_table.__tablename__,
+        path.name,
+        elapsed,
+        len(data) / max(elapsed, 0.001),
+    )
 
 
 def build_db(
